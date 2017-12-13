@@ -1,0 +1,4 @@
+html/frontend.js
+html/frontend.js.map
+# We don't HAVE to check in generated code.
+bundle.go

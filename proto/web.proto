@@ -1,0 +1,44 @@
+syntax = "proto3";
+
+// Web exposes a backend server over gRPC.
+package web;
+
+import "github.com/johanbrandhorst/protobuf/proto/gopherjs.proto";
+
+// Define the package locations the generated files will go into
+option (gopherjs.gopherjs_package) = "gitlab.com/DSASanFrancisco/co-chair/proto/client";
+option go_package = "gitlab.com/DSASanFrancisco/co-chair/proto/server";
+
+// Backend defines the interface exposed by the backend.
+// TODO: Define functionality exposed by backend.
+service Backend {
+}
+
+service Proxy {
+    rpc State(StateRequest) returns (ProxyState) {}
+    rpc Put(BackendT) returns (OpResult) {}
+    rpc Remove(BackendT) returns (OpResult) {}
+}
+
+message BackendT {
+    string domain = 1;
+    repeated string ips = 2;
+}
+
+message ProxyState {
+    repeated BackendT backends = 1;
+    // a status message, or an error message.
+    string status = 2;
+    // an error code
+    int32 code = 3;
+}
+
+message OpResult {
+    int32 code = 1;
+    string status = 2;
+}
+
+message StateRequest {
+    string domain = 1;
+}
+
