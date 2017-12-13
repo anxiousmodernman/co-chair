@@ -119,25 +119,19 @@ func main() {
 		t.Execute(res, user)
 	})
 
-	p.Get("/logout/{provider}", func(res http.ResponseWriter, req *http.Request) {
-		gothic.Logout(res, req)
-		res.Header().Set("Location", "/")
-		res.WriteHeader(http.StatusTemporaryRedirect)
-	})
+	p.Get("/logout/{provider}", logoutHandler)
 
-	p.Get("/auth/{provider}", func(res http.ResponseWriter, req *http.Request) {
-		// try to get the user without re-authenticating
-		if gothUser, err := gothic.CompleteUserAuth(res, req); err == nil {
-			t, _ := template.New("foo").Parse(userTemplate)
-			t.Execute(res, gothUser)
+	p.Get("/auth/{provider}", loginHandler)
+
+	p.Get("/", func(w http.ResponseWriter, req *http.Request) {
+		// Redirect gRPC and gRPC-Web requests to the gRPC-Web Websocket Proxy server
+		if req.ProtoMajor == 2 && strings.Contains(req.Header.Get("Content-Type"), "application/grpc") ||
+			websocket.IsWebSocketUpgrade(req) {
+			wsproxy.ServeHTTP(w, req)
 		} else {
-			gothic.BeginAuthHandler(res, req)
+			// Serve the GopherJS client
+			http.FileServer(bundle.Assets).ServeHTTP(w, req)
 		}
-	})
-
-	p.Get("/", func(res http.ResponseWriter, req *http.Request) {
-		t, _ := template.New("foo").Parse(indexTemplate)
-		t.Execute(res, providerIndex)
 	})
 
 	handler := func(resp http.ResponseWriter, req *http.Request) {
@@ -161,13 +155,21 @@ func main() {
 			ValidationKeyGetter: func(token *jwt.Token) (interface{}, error) {
 				return []byte(os.Getenv("COCHAIR_AUTH0_SECRET")), nil
 			},
-			Extractor: extractor, // type TokenExtractor
+			ErrorHandler: func(w http.ResponseWriter, r *http.Request, msg string) {
+				logger.Debug("middleware error handler")
+				t, _ := template.New("foo").Parse(indexTemplate)
+				// TODO try this with nil instead of providerIndex...
+				t.Execute(w, providerIndex)
+			},
 			// TokenExtractor is a function that takes a request as input and returns
 			// either a token or an error.  An error should only be returned if an attempt
 			// to specify a token was found, but the information was somehow incorrectly
 			// formed.  In the case where a token is simply not present, this should not
 			// be treated as an error.  An empty string should be returned in that case.
-			//type TokenExtractor func(r *http.Request) (string, error)
+			//
+			// signature:
+			// type TokenExtractor func(r *http.Request) (string, error)
+			Extractor: extractor,
 
 			// When set, the middleware verifies that tokens are signed with the
 			// specific signing algorithm If the signing method is not constant
@@ -187,7 +189,7 @@ func main() {
 	addr := "localhost:2016"
 	httpsSrv := &http.Server{
 		Addr:    addr,
-		Handler: h, //p,
+		Handler: p,
 		// Some security settings
 		ReadHeaderTimeout: 5 * time.Second,
 		IdleTimeout:       120 * time.Second,
@@ -205,9 +207,9 @@ func main() {
 
 }
 
-var indexTemplate = `{{range $key,$value:=.Providers}}
-<p><a href="/auth/{{$value}}">Log in with {{index $.ProvidersMap $value}}</a></p>
-{{end}}`
+var indexTemplate = `
+<p><a href="/auth/auth0">Log in with auth0</a></p>
+`
 
 var userTemplate = `
 <p><a href="/logout/{{.Provider}}">logout</a></p>
@@ -228,14 +230,30 @@ type ProviderIndex struct {
 	ProvidersMap map[string]string
 }
 
-func extractor(req *http.Request) (string, error) {
-	if req == nil {
+func extractor(r *http.Request) (string, error) {
+	if r == nil {
 		return "", errors.New("no http request provided")
 	}
 
-	c, err := req.Cookie("auth0_gothic_session")
+	c, err := r.Cookie("auth0_gothic_session")
 	if err != nil {
 		return "", fmt.Errorf("cookie read: %v", err)
 	}
 	return c.Value, nil
+}
+
+func loginHandler(w http.ResponseWriter, r *http.Request) {
+	if gothUser, err := gothic.CompleteUserAuth(w, r); err == nil {
+		// TODO: redirect to app instead of serving example page
+		t, _ := template.New("foo").Parse(userTemplate)
+		t.Execute(w, gothUser)
+	} else {
+		gothic.BeginAuthHandler(w, r)
+	}
+}
+
+func logoutHandler(w http.ResponseWriter, r *http.Request) {
+	gothic.Logout(w, r)
+	w.Header().Set("Location", "/")
+	w.WriteHeader(http.StatusTemporaryRedirect)
 }
