@@ -14,10 +14,10 @@
   revision = "349dd0209470eabd9514242c688c403c0926d266"
 
 [[projects]]
+  branch = "master"
   name = "github.com/anxiousmodernman/goth"
   packages = [".","gothic","providers/auth0"]
-  revision = "86ca064cf1b7ebefa670bdc9eaadba0f3a6d9607"
-  version = "v1.43.0"
+  revision = "c0c323146c700112a046e4012e1d1cab4d11afc9"
 
 [[projects]]
   name = "github.com/asdine/storm"
@@ -196,6 +196,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "04fa4c721e983d5486e273ee8fa1b88435aa7a59948d7c21fca1d37a0a474e0c"
+  inputs-digest = "a387d63342740072a1da3c294dc2be1d6b6ab2397368c89a2d741a515eb4960d"
   solver-name = "gps-cdcl"
   solver-version = 1
