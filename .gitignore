@@ -1,4 +1,12 @@
+# generated cert, key
 cert.pem
 key.pem
+
+# boltdb database file
 co-chair.db
+
+# 3rd party code
 vendor/
+
+# editors, IDE
+.vscode

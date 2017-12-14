@@ -37,6 +37,8 @@ func main() {}
 
 // Ensure our setup() gets called as soon as the DOM has loaded
 func init() {
+	dims.Width = js.Global.Get("window").Get("innerWidth").Int64()
+	dims.Height = js.Global.Get("window").Get("innerHeight").Int64()
 	document.AddEventListener("DOMContentLoaded", false, func(_ dom.Event) {
 		go setup()
 	})
