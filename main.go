@@ -130,13 +130,21 @@ func main() {
 		negroni.Wrap(http.HandlerFunc(logoutHandler)),
 	)).Methods("GET")
 
-	p.Handle("/", negroni.New(
+	// All websockets requests
+	p.Handle("/web.Proxy/{method}", negroni.New(
 		negroni.HandlerFunc(withLog),
 		negroni.HandlerFunc(IsAuthenticated),
 		negroni.Wrap(websocketsProxy(wsproxy)),
 	)).Methods("POST")
 
 	p.Handle("/", negroni.New(
+		negroni.HandlerFunc(withLog),
+		negroni.HandlerFunc(IsAuthenticated),
+		negroni.Wrap(http.HandlerFunc(homeHandler)),
+	)).Methods("GET")
+
+	// CAN WE USE SAME home?
+	p.Handle("/frontend.js", negroni.New(
 		negroni.HandlerFunc(withLog),
 		negroni.HandlerFunc(IsAuthenticated),
 		negroni.Wrap(http.HandlerFunc(homeHandler)),
@@ -437,6 +445,7 @@ func IsAuthenticated(w http.ResponseWriter, r *http.Request, next http.HandlerFu
 		logger.Errorf("session profile not found; redirecting.")
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
 	} else {
+		logger.Info("auth passed")
 		next(w, r)
 	}
 }
