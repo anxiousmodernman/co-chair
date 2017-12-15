@@ -285,6 +285,8 @@ func (m *OpResult) Unmarshal(rawBytes []byte) (*OpResult, error) {
 }
 
 type StateRequest struct {
+	// if domain is empty string, return "all" states, otherwise
+	// match domain DNS-style, e.g. google.com matches docs.google.com
 	Domain string
 }
 

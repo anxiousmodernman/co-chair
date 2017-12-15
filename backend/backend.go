@@ -34,13 +34,14 @@ func (p *Proxy) State(_ context.Context, req *server.StateRequest) (*server.Prox
 	var resp server.ProxyState
 	var backends []*BackendData
 	var err error
+	fmt.Println("OKAY!!!!!!!!!!!!!!!!!!!!!!!!!!!")
 	if req.Domain == "" {
 		err = p.DB.All(&backends)
 	} else {
 		err = p.DB.Find("Domain", req.Domain, &backends)
 	}
 	if err != nil {
-		return nil, fmt.Errorf("db error: %v", err)
+		return nil, fmt.Errorf("domain: %s; db error: %v", req.Domain, err)
 	}
 	for _, b := range backends {
 		resp.Backends = append(resp.Backends, b.AsBackend())
@@ -93,7 +94,19 @@ func combine(a, b []string) []string {
 }
 
 // Remove ... TODO
-func (p *Proxy) Remove(context.Context, *server.Backend) (*server.OpResult, error) { return nil, nil }
+func (p *Proxy) Remove(_ context.Context, b *server.Backend) (*server.OpResult, error) {
+	// match on domain name exactly
+	var bd BackendData
+	if err := p.DB.One("Domain", b.Domain, &bd); err != nil {
+		return nil, err
+	}
+	if err := p.DB.DeleteStruct(&bd); err != nil {
+		return nil, err
+	}
+
+	res := &server.OpResult{Code: 200, Status: fmt.Sprintf("removed: %s", bd.Domain)}
+	return res, nil
+}
 
 // BackendData is our type for the storm ORM. We can define field-level
 // constraints and indexes on struct tags.

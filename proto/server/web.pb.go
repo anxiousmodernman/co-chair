@@ -121,6 +121,8 @@ func (m *OpResult) GetStatus() string {
 }
 
 type StateRequest struct {
+	// if domain is empty string, return "all" states, otherwise
+	// match domain DNS-style, e.g. google.com matches docs.google.com
 	Domain string `protobuf:"bytes,1,opt,name=domain" json:"domain,omitempty"`
 }
 

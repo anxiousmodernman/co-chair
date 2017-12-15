@@ -23,3 +23,6 @@ generate_cert:
 
 serve:
 	go run main.go serve
+
+test:
+	go test ./...

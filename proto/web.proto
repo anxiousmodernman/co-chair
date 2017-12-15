@@ -34,6 +34,9 @@ message OpResult {
 }
 
 message StateRequest {
+    // if domain is empty string, return "all" states, otherwise 
+    // match domain DNS-style, e.g. google.com matches docs.google.com
     string domain = 1;
 }
+
 

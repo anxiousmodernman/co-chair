@@ -7,31 +7,31 @@ import (
 	"encoding/base64"
 	"encoding/gob"
 	"encoding/json"
+	"fmt"
 	"html/template"
 	"log"
 	"math"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
 	"strings"
 	"time"
 
-	"github.com/gorilla/mux"
-	"github.com/urfave/cli"
-
 	"golang.org/x/oauth2"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/grpclog"
 
 	"github.com/anxiousmodernman/goth/gothic"
 	"github.com/codegangsta/negroni"
+	"github.com/gorilla/mux"
 	"github.com/gorilla/sessions"
 	"github.com/gorilla/websocket"
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
 	"github.com/johanbrandhorst/protobuf/wsproxy"
 	"github.com/sirupsen/logrus"
-
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/grpclog"
+	"github.com/urfave/cli"
 
 	"gitlab.com/DSASanFrancisco/co-chair/backend"
 	"gitlab.com/DSASanFrancisco/co-chair/frontend/bundle"
@@ -124,6 +124,17 @@ func run(dbPath, apiCert, apiKey string) error {
 		log.Fatalf("proxy init: %v", err)
 	}
 
+	// Pure-gRPC management API
+	grpcOnlyServer := grpc.NewServer()
+	// passing px two places... ruh roh?
+	server.RegisterProxyServer(grpcOnlyServer, px)
+	lis, err := net.Listen("tcp", "127.0.0.1:1917")
+	if err != nil {
+		return fmt.Errorf("listener error: %v", err)
+	}
+	go func() { grpcOnlyServer.Serve(lis) }()
+
+	// gRPC over websockets management API
 	gs := grpc.NewServer()
 	server.RegisterProxyServer(gs, px)
 	wrappedServer := grpcweb.WrapServer(gs)
@@ -174,7 +185,6 @@ func run(dbPath, apiCert, apiKey string) error {
 		negroni.Wrap(http.HandlerFunc(homeHandler)),
 	)).Methods("GET")
 
-	// CAN WE USE SAME home?
 	p.Handle("/frontend.js", negroni.New(
 		negroni.HandlerFunc(withLog),
 		negroni.HandlerFunc(IsAuthenticated),
@@ -205,8 +215,15 @@ func run(dbPath, apiCert, apiKey string) error {
 		grpcAPI <- httpsSrv.ListenAndServeTLS("./cert.pem", "./key.pem")
 	}()
 
+	fwdr, _ := backend.NewProxyForwarder("127.0.0.1:1917", logger)
+
 	go func() {
-		// run proxy here
+
+		s := &http.Server{
+			Addr:    ":8080",
+			Handler: fwdr,
+		}
+		proxy <- s.ListenAndServe()
 	}()
 
 	// block until we get an error on a channel
