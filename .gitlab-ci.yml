@@ -7,7 +7,7 @@ image: golang:latest
 
 
 before_script:
-- apk add --update make wget unzip protoc
+- apk add --update make wget unzip protobuf
 - wget https://github.com/google/protobuf/releases/download/v3.5.0/protoc-3.5.0-linux-x86_64.zip
 - unzip protoc-3.5.0-linux-x86_64.zip
 - ls protoc-3.5.0-linux-x86_64
