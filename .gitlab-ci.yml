@@ -1,5 +1,5 @@
 
-image: golang:latest
+image: iron/go:latest
 
 #services:
 #- docker:dind
