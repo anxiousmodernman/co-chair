@@ -10,7 +10,7 @@
 		proto/web.proto
 
 	It has these top-level messages:
-		BackendT
+		Backend
 		ProxyState
 		OpResult
 		StateRequest
@@ -29,29 +29,29 @@ import (
 // is compatible with the jspb package it is being compiled against.
 const _ = jspb.JspbPackageIsVersion2
 
-type BackendT struct {
+type Backend struct {
 	Domain string
 	Ips    []string
 }
 
-// GetDomain gets the Domain of the BackendT.
-func (m *BackendT) GetDomain() (x string) {
+// GetDomain gets the Domain of the Backend.
+func (m *Backend) GetDomain() (x string) {
 	if m == nil {
 		return x
 	}
 	return m.Domain
 }
 
-// GetIps gets the Ips of the BackendT.
-func (m *BackendT) GetIps() (x []string) {
+// GetIps gets the Ips of the Backend.
+func (m *Backend) GetIps() (x []string) {
 	if m == nil {
 		return x
 	}
 	return m.Ips
 }
 
-// MarshalToWriter marshals BackendT to the provided writer.
-func (m *BackendT) MarshalToWriter(writer jspb.Writer) {
+// MarshalToWriter marshals Backend to the provided writer.
+func (m *Backend) MarshalToWriter(writer jspb.Writer) {
 	if m == nil {
 		return
 	}
@@ -67,18 +67,18 @@ func (m *BackendT) MarshalToWriter(writer jspb.Writer) {
 	return
 }
 
-// Marshal marshals BackendT to a slice of bytes.
-func (m *BackendT) Marshal() []byte {
+// Marshal marshals Backend to a slice of bytes.
+func (m *Backend) Marshal() []byte {
 	writer := jspb.NewWriter()
 	m.MarshalToWriter(writer)
 	return writer.GetResult()
 }
 
-// UnmarshalFromReader unmarshals a BackendT from the provided reader.
-func (m *BackendT) UnmarshalFromReader(reader jspb.Reader) *BackendT {
+// UnmarshalFromReader unmarshals a Backend from the provided reader.
+func (m *Backend) UnmarshalFromReader(reader jspb.Reader) *Backend {
 	for reader.Next() {
 		if m == nil {
-			m = &BackendT{}
+			m = &Backend{}
 		}
 
 		switch reader.GetFieldNumber() {
@@ -94,8 +94,8 @@ func (m *BackendT) UnmarshalFromReader(reader jspb.Reader) *BackendT {
 	return m
 }
 
-// Unmarshal unmarshals a BackendT from a slice of bytes.
-func (m *BackendT) Unmarshal(rawBytes []byte) (*BackendT, error) {
+// Unmarshal unmarshals a Backend from a slice of bytes.
+func (m *Backend) Unmarshal(rawBytes []byte) (*Backend, error) {
 	reader := jspb.NewReader(rawBytes)
 
 	m = m.UnmarshalFromReader(reader)
@@ -108,7 +108,7 @@ func (m *BackendT) Unmarshal(rawBytes []byte) (*BackendT, error) {
 }
 
 type ProxyState struct {
-	Backends []*BackendT
+	Backends []*Backend
 	// a status message, or an error message.
 	Status string
 	// an error code
@@ -116,7 +116,7 @@ type ProxyState struct {
 }
 
 // GetBackends gets the Backends of the ProxyState.
-func (m *ProxyState) GetBackends() (x []*BackendT) {
+func (m *ProxyState) GetBackends() (x []*Backend) {
 	if m == nil {
 		return x
 	}
@@ -179,7 +179,7 @@ func (m *ProxyState) UnmarshalFromReader(reader jspb.Reader) *ProxyState {
 		switch reader.GetFieldNumber() {
 		case 1:
 			reader.ReadMessage(func() {
-				m.Backends = append(m.Backends, new(BackendT).UnmarshalFromReader(reader))
+				m.Backends = append(m.Backends, new(Backend).UnmarshalFromReader(reader))
 			})
 		case 2:
 			m.Status = reader.ReadString()
@@ -355,30 +355,12 @@ var _ grpcweb.Client
 // is compatible with the grpcweb package it is being compiled against.
 const _ = grpcweb.GrpcWebPackageIsVersion2
 
-// Client API for Backend service
-
-// Backend defines the interface exposed by the backend.
-// TODO: Define functionality exposed by backend.
-type BackendClient interface {
-}
-
-type backendClient struct {
-	client *grpcweb.Client
-}
-
-// NewBackendClient creates a new gRPC-Web client.
-func NewBackendClient(hostname string, opts ...grpcweb.DialOption) BackendClient {
-	return &backendClient{
-		client: grpcweb.NewClient(hostname, "web.Backend", opts...),
-	}
-}
-
 // Client API for Proxy service
 
 type ProxyClient interface {
 	State(ctx context.Context, in *StateRequest, opts ...grpcweb.CallOption) (*ProxyState, error)
-	Put(ctx context.Context, in *BackendT, opts ...grpcweb.CallOption) (*OpResult, error)
-	Remove(ctx context.Context, in *BackendT, opts ...grpcweb.CallOption) (*OpResult, error)
+	Put(ctx context.Context, in *Backend, opts ...grpcweb.CallOption) (*OpResult, error)
+	Remove(ctx context.Context, in *Backend, opts ...grpcweb.CallOption) (*OpResult, error)
 }
 
 type proxyClient struct {
@@ -401,7 +383,7 @@ func (c *proxyClient) State(ctx context.Context, in *StateRequest, opts ...grpcw
 	return new(ProxyState).Unmarshal(resp)
 }
 
-func (c *proxyClient) Put(ctx context.Context, in *BackendT, opts ...grpcweb.CallOption) (*OpResult, error) {
+func (c *proxyClient) Put(ctx context.Context, in *Backend, opts ...grpcweb.CallOption) (*OpResult, error) {
 	resp, err := c.client.RPCCall(ctx, "Put", in.Marshal(), opts...)
 	if err != nil {
 		return nil, err
@@ -410,7 +392,7 @@ func (c *proxyClient) Put(ctx context.Context, in *BackendT, opts ...grpcweb.Cal
 	return new(OpResult).Unmarshal(resp)
 }
 
-func (c *proxyClient) Remove(ctx context.Context, in *BackendT, opts ...grpcweb.CallOption) (*OpResult, error) {
+func (c *proxyClient) Remove(ctx context.Context, in *Backend, opts ...grpcweb.CallOption) (*OpResult, error) {
 	resp, err := c.client.RPCCall(ctx, "Remove", in.Marshal(), opts...)
 	if err != nil {
 		return nil, err

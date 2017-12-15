@@ -171,7 +171,7 @@ func (apf *AddProxyForm) onDomainInput(e *vecty.Event) {
 
 func (apf *AddProxyForm) onSubmit(e *vecty.Event) {
 	ctx := context.Background()
-	req := &client.BackendT{}
+	req := &client.Backend{}
 	req.Domain = apf.Domain
 	req.Ips = []string{apf.IP}
 	go func() {
