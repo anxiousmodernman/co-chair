@@ -1,5 +1,5 @@
 generate:
-	protoc -I. -Ivendor/ ./proto/web.proto \
+	protoc -I. -I/tmp/protobuf/include -Ivendor/ ./proto/web.proto \
 		--gopherjs_out=plugins=grpc:$$GOPATH/src \
 		--go_out=plugins=grpc:$$GOPATH/src
 	go generate ./frontend/
