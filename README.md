@@ -55,3 +55,18 @@ make generate_cert
 make serve
 ```
 
+## Running tests
+
+Running tests requires modifications to **/etc/hosts**. Please add the following
+line to give us 3 additional aliases to lochalhost.
+
+```
+127.0.0.1   server1  server2  server3
+```
+
+Then run tests with
+
+```
+make test
+```
+

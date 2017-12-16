@@ -34,7 +34,6 @@ func (p *Proxy) State(_ context.Context, req *server.StateRequest) (*server.Prox
 	var resp server.ProxyState
 	var backends []*BackendData
 	var err error
-	fmt.Println("OKAY!!!!!!!!!!!!!!!!!!!!!!!!!!!")
 	if req.Domain == "" {
 		err = p.DB.All(&backends)
 	} else {
