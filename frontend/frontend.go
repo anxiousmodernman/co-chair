@@ -228,12 +228,9 @@ func (n *NavComponent) Render() vecty.ComponentOrHTML {
 
 	return elem.Div(
 		elem.UnorderedList(
-			&NavItem{Name: "first"},
-			&NavItem{Name: "second"},
-			&NavItem{Name: "third"},
-			&NavItem{Name: "fourth"},
-			&NavItem{Name: "fifth"},
-			&NavItem{Name: "shoe2"},
+			&NavItem{Name: "backends"},
+			&NavItem{Name: "perf"},
+			&NavItem{Name: "about"},
 			ulstyle,
 		),
 	)
@@ -269,8 +266,8 @@ func (ni *NavItem) Render() vecty.ComponentOrHTML {
 		)
 	}
 
-	var colr = ifElse(ni.hovered, "#92CFE0", "#918D55")
-	var bckgrnd = ifElse(ni.hovered, "#005f5f", "#918B30")
+	var colr = ifElse(ni.hovered, "rgb(222, 222, 216)", "rgb(222, 222, 216)")
+	var bckgrnd = ifElse(ni.hovered, "rgb(135, 133, 133)", "rgb(89, 89, 89)")
 
 	var astyle vecty.MarkupList
 	astyle = vecty.Markup(

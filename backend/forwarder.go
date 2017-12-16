@@ -66,8 +66,8 @@ func (pf *ProxyForwarder) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("client is nil"))
 		return
 	}
+
 	splitted := strings.Split(dom, ":")
-	fmt.Println("splitted:", splitted)
 
 	req := &server.StateRequest{Domain: splitted[0]}
 	upstreams, err := pf.c.State(context.Background(), req)
@@ -82,7 +82,8 @@ func (pf *ProxyForwarder) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				// Note: field Host must be host or host:port
 				// Also note: merely setting fields on the request is all the oxy
 				// library needs to forward the request.
-				r.URL = testutils.ParseURI("http://" + upstreams.Backends[0].Ips[0])
+
+				r.URL = testutils.ParseURI(protocolFmt(r) + upstreams.Backends[0].Ips[0])
 				pf.logger.Infof("proxying %s -> %s", dom, r.Host)
 				pf.fwd.ServeHTTP(w, r)
 				// we MUST return early
@@ -100,4 +101,11 @@ func orElse(a, b string) string {
 		return a
 	}
 	return b
+}
+
+func protocolFmt(r *http.Request) string {
+	if r.TLS == nil {
+		return "http://"
+	}
+	return "https://"
 }
