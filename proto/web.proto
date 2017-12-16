@@ -9,24 +9,19 @@ import "github.com/johanbrandhorst/protobuf/proto/gopherjs.proto";
 option (gopherjs.gopherjs_package) = "gitlab.com/DSASanFrancisco/co-chair/proto/client";
 option go_package = "gitlab.com/DSASanFrancisco/co-chair/proto/server";
 
-// Backend defines the interface exposed by the backend.
-// TODO: Define functionality exposed by backend.
-service Backend {
-}
-
 service Proxy {
     rpc State(StateRequest) returns (ProxyState) {}
-    rpc Put(BackendT) returns (OpResult) {}
-    rpc Remove(BackendT) returns (OpResult) {}
+    rpc Put(Backend) returns (OpResult) {}
+    rpc Remove(Backend) returns (OpResult) {}
 }
 
-message BackendT {
+message Backend {
     string domain = 1;
     repeated string ips = 2;
 }
 
 message ProxyState {
-    repeated BackendT backends = 1;
+    repeated Backend backends = 1;
     // a status message, or an error message.
     string status = 2;
     // an error code
@@ -39,6 +34,9 @@ message OpResult {
 }
 
 message StateRequest {
+    // if domain is empty string, return "all" states, otherwise 
+    // match domain DNS-style, e.g. google.com matches docs.google.com
     string domain = 1;
 }
+
 

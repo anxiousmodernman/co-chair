@@ -7,17 +7,9 @@ import (
 	"sort"
 	"strings"
 
-	"gitlab.com/DSASanFrancisco/co-chair/proto/server"
 	"github.com/asdine/storm"
+	"gitlab.com/DSASanFrancisco/co-chair/proto/server"
 )
-
-// Backend should be used to implement the server interface
-// exposed by the generated server proto.
-type Backend struct {
-}
-
-// Ensure struct implements interface
-var _ server.BackendServer = (*Backend)(nil)
 
 // Proxy is our server.ProxyServer implementation.
 type Proxy struct {
@@ -48,17 +40,17 @@ func (p *Proxy) State(_ context.Context, req *server.StateRequest) (*server.Prox
 		err = p.DB.Find("Domain", req.Domain, &backends)
 	}
 	if err != nil {
-		return nil, fmt.Errorf("db error: %v", err)
+		return nil, fmt.Errorf("domain: %s; db error: %v", req.Domain, err)
 	}
 	for _, b := range backends {
-		resp.Backends = append(resp.Backends, b.AsBackendT())
+		resp.Backends = append(resp.Backends, b.AsBackend())
 	}
 
 	return &resp, nil
 }
 
 // Put adds a backend to our pool of proxied Backends.
-func (p *Proxy) Put(ctx context.Context, b *server.BackendT) (*server.OpResult, error) {
+func (p *Proxy) Put(ctx context.Context, b *server.Backend) (*server.OpResult, error) {
 	var bd BackendData
 	err := p.DB.One("Domain", b.Domain, &bd)
 
@@ -101,7 +93,19 @@ func combine(a, b []string) []string {
 }
 
 // Remove ... TODO
-func (p *Proxy) Remove(context.Context, *server.BackendT) (*server.OpResult, error) { return nil, nil }
+func (p *Proxy) Remove(_ context.Context, b *server.Backend) (*server.OpResult, error) {
+	// match on domain name exactly
+	var bd BackendData
+	if err := p.DB.One("Domain", b.Domain, &bd); err != nil {
+		return nil, err
+	}
+	if err := p.DB.DeleteStruct(&bd); err != nil {
+		return nil, err
+	}
+
+	res := &server.OpResult{Code: 200, Status: fmt.Sprintf("removed: %s", bd.Domain)}
+	return res, nil
+}
 
 // BackendData is our type for the storm ORM. We can define field-level
 // constraints and indexes on struct tags.
@@ -111,9 +115,9 @@ type BackendData struct {
 	IPs    []string
 }
 
-// AsBackendT is a conversion method to a grpc-sendable type.
-func (bd BackendData) AsBackendT() *server.BackendT {
-	var b server.BackendT
+// AsBackend is a conversion method to a grpc-sendable type.
+func (bd BackendData) AsBackend() *server.Backend {
+	var b server.Backend
 	b.Domain = bd.Domain
 	b.Ips = bd.IPs
 	return &b

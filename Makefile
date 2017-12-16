@@ -22,4 +22,7 @@ generate_cert:
 		--ca=true
 
 serve:
-	go run main.go
+	go run main.go serve
+
+test:
+	go test ./...

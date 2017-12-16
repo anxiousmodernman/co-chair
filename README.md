@@ -1,6 +1,6 @@
 # co-chair
 
-Work-in-progress: a configurable edge proxy that also does auth. The aim is to provide a 
+A configurable edge proxy that also does auth. The aim is to provide a 
 single-node proxy, configurable via a UI or api. 
 
 
@@ -53,5 +53,20 @@ make install
 make generate
 make generate_cert
 make serve
+```
+
+## Running tests
+
+Running tests requires modifications to **/etc/hosts**. Please add the following
+line to give us 3 additional aliases to lochalhost.
+
+```
+127.0.0.1   server1  server2  server3
+```
+
+Then run tests with
+
+```
+make test
 ```
 
