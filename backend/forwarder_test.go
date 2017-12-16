@@ -89,10 +89,9 @@ func TestProxyForwarder(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 
-			c := http.DefaultClient
 			url := fmt.Sprintf("http://%s:42069", tc.name)
 			req, _ := http.NewRequest("GET", url, nil)
-			resp, err := c.Do(req)
+			resp, err := http.DefaultClient.Do(req)
 			if err != nil {
 				t.Fatalf("request: %v", err)
 			}
@@ -100,6 +99,22 @@ func TestProxyForwarder(t *testing.T) {
 				t.Errorf("expected %v got %v", tc.code, resp.StatusCode)
 			}
 		})
+	}
+
+	t.Log("remove server2")
+	_, err := pc.Remove(context.TODO(), &backends[1])
+	if err != nil {
+		t.Errorf("remove: %v", err)
+	}
+
+	t.Log("server2 now returns 404")
+	req, _ := http.NewRequest("GET", "http://server2:42069", nil)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("do request: %v", err)
+	}
+	if resp.StatusCode != http.StatusNotFound {
+		t.Errorf("expected 404 got %v", resp.StatusCode)
 	}
 }
 
