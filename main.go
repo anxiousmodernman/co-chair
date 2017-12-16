@@ -235,7 +235,7 @@ func run(conf config.Config) error {
 	proxy := make(chan error)
 	pureGRPC := make(chan error)
 
-	go func() { grpcOnlyServer.Serve(lis) }()
+	go func() { pureGRPC <- grpcOnlyServer.Serve(lis) }()
 
 	go func() {
 		logger.Info("Serving on https://" + addr)
