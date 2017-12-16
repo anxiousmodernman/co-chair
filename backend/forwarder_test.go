@@ -165,10 +165,6 @@ type FakeServer struct {
 	Addr string
 }
 
-func (f *FakeServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	//w.WriteHeader(f.code)
-	return
-}
 func (f *FakeServer) Start() {
 	go func() {
 		f.srv.Serve(f.lis)
