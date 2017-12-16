@@ -1,6 +1,6 @@
 # co-chair
 
-Work-in-progress: a configurable edge proxy that also does auth. The aim is to provide a 
+A configurable edge proxy that also does auth. The aim is to provide a 
 single-node proxy, configurable via a UI or api. 
 
 
