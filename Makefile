@@ -22,7 +22,8 @@ generate_cert:
 		--ca=true
 
 serve:
-	go run main.go serve
+	# to use go run, provide all package main files 
+	go run main.go web.go serve
 
 test:
 	go test ./...
