@@ -16,7 +16,7 @@
 [[projects]]
   branch = "master"
   name = "github.com/anxiousmodernman/goth"
-  packages = [".","gothic","providers/auth0"]
+  packages = [".","gothic"]
   revision = "c0c323146c700112a046e4012e1d1cab4d11afc9"
 
 [[projects]]
@@ -24,18 +24,6 @@
   packages = [".","codec","codec/json","index","internal","q"]
   revision = "dbd37722730b6cb703b5bd825c3f142d87358525"
   version = "v2.0.0"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/auth0-community/go-auth0"
-  packages = ["."]
-  revision = "9ebd072c579e8060c6d60690e9dffd3b79718992"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/auth0/go-jwt-middleware"
-  packages = ["."]
-  revision = "5493cabe49f7bfa6e2ec444a09d334d90cd4e2bd"
 
 [[projects]]
   name = "github.com/codegangsta/negroni"
@@ -50,18 +38,6 @@
   version = "v1.3.0"
 
 [[projects]]
-  name = "github.com/dgrijalva/jwt-go"
-  packages = ["."]
-  revision = "dbeaa9332f19a944acb5736b4456cfcc02140e29"
-  version = "v3.1.0"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/go-errors/errors"
-  packages = ["."]
-  revision = "3afebba5a48dbc89b574d890b6b34d9ee10b4785"
-
-[[projects]]
   branch = "master"
   name = "github.com/golang/protobuf"
   packages = ["proto","protoc-gen-go","protoc-gen-go/descriptor","protoc-gen-go/generator","protoc-gen-go/grpc","protoc-gen-go/plugin","ptypes","ptypes/any","ptypes/duration","ptypes/timestamp"]
@@ -70,7 +46,7 @@
 [[projects]]
   branch = "master"
   name = "github.com/gopherjs/vecty"
-  packages = [".","elem","event","prop","style"]
+  packages = [".","elem","event","prop"]
   revision = "03a16cfdc96974c7afdc9aa784b4a91b0964c359"
 
 [[projects]]
@@ -146,9 +122,21 @@
   version = "v1.0.3"
 
 [[projects]]
+  name = "github.com/urfave/cli"
+  packages = ["."]
+  revision = "cfb38830724cc34fedffe9a2a29fb54fa9169cd1"
+  version = "v1.20.0"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/vulcand/oxy"
+  packages = ["forward","testutils","utils"]
+  revision = "ad9ad6c09ee1f5d719224170baf8114e0810998a"
+
+[[projects]]
   branch = "master"
   name = "golang.org/x/crypto"
-  packages = ["ed25519","ed25519/internal/edwards25519","ssh/terminal"]
+  packages = ["ssh/terminal"]
   revision = "9f005a07e0d31d45e6656d241bb5c0f2efd4bc94"
 
 [[projects]]
@@ -194,12 +182,6 @@
   version = "v1.8.0"
 
 [[projects]]
-  name = "gopkg.in/square/go-jose.v2"
-  packages = [".","cipher","json","jwt"]
-  revision = "f8f38de21b4dcd69d0413faf231983f5fd6634b1"
-  version = "v2.1.3"
-
-[[projects]]
   branch = "master"
   name = "honnef.co/go/js/dom"
   packages = ["."]
@@ -208,6 +190,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "dd44c57b47fae57ec4e1a5483dff3ee2bfea0a6a34d69b182154a225867d5939"
+  inputs-digest = "2fb3df6df2329b1253efac5829edd03d0939fa7afe6815978d9d6e76b6cb4362"
   solver-name = "gps-cdcl"
   solver-version = 1
