@@ -1,4 +1,4 @@
-//go:generate gopherjs build frontend.go -m -o html/frontend.js
+//go:generate gopherjs build frontend.go -o html/frontend.js
 //go:generate bash -c "go run assets_generate.go"
 package main
 
@@ -14,7 +14,6 @@ import (
 	"github.com/gopherjs/vecty/elem"
 	"github.com/gopherjs/vecty/event"
 	"github.com/gopherjs/vecty/prop"
-	"github.com/gopherjs/vecty/style"
 	"gitlab.com/DSASanFrancisco/co-chair/frontend/store"
 	"gitlab.com/DSASanFrancisco/co-chair/proto/client"
 )
@@ -69,13 +68,8 @@ type Page struct {
 
 // Render implements vecty.Component for Page.
 func (p *Page) Render() vecty.ComponentOrHTML {
-
 	return elem.Body(
-		vecty.Markup(
-			style.Margin(style.Px(0)),
-			vecty.Style("padding", "0"),
-			vecty.Style("background", "#ccc"),
-		),
+		NewCSS("margin", "0", "padding", "0", "background", "#ccc").Yield(),
 		elem.Header(
 			&NavComponent{},
 		),
@@ -113,15 +107,40 @@ func (bl *BackendList) Render() vecty.ComponentOrHTML {
 		}()
 	})
 
+	// items will become a list of backends blocked out in a grid. Backends is
+	// a heterogeneous list of styles and Divs
 	var items []vecty.MarkupOrChild
+
+	var grid CSS
+	grid.And(
+		"grid-gap", "10px",
+		"display", "grid",
+		"margin", "10px",
+	).AndIf(dims.Width > 600,
+		"width", "800px",
+		"grid-template-columns", "repeat(4, 200px)",
+	).AndIf(dims.Width <= 600,
+		"width", "100%",
+		"grid-template-columns", "repeat(1, 80%)",
+	)
+	items = append(items, grid.Yield())
+
+	// MarkupOrChild can hold a MarkupList (our grid styling),
+	// and lists of elem.Div
 	for _, bi := range bl.Items {
-		items = append(items, elem.ListItem(
-			elem.Div(vecty.Text(bi.Domain), vecty.Text(bi.IP)),
-		))
+		var box = NewCSS(
+			"background-color", "#444",
+			"color", "#fff",
+			"border-radius", "5px",
+			"padding", "20px",
+			"font-size", "100%",
+		)
+		items = append(items,
+			elem.Div(box.Yield(), vecty.Text(bi.Domain), vecty.Text(bi.IP)))
 	}
 
 	return elem.Div(
-		elem.UnorderedList(items...),
+		elem.Div(items...),
 		elem.Button(
 			vecty.Text("Refresh"),
 			vecty.Markup(buttonClicked),
@@ -206,37 +225,30 @@ type NavComponent struct {
 // Render implements vecty.ComponentOrHTML
 func (n *NavComponent) Render() vecty.ComponentOrHTML {
 
-	var ulstyle vecty.MarkupList
-
-	if dims.Width > 600 {
-		ulstyle = vecty.Markup(
-			vecty.Style("list-style", "none"),
-			vecty.Style("background-color", "#444"),
-			vecty.Style("margin", "auto"),
-			vecty.Style("width", "100%"),
-			vecty.Style("overflow", "auto"),
-		)
-	} else {
-		ulstyle = vecty.Markup(
-			vecty.Style("list-style", "none"),
-			vecty.Style("background-color", "#444"),
-			vecty.Style("text-align", "center"),
-			vecty.Style("padding", "0"),
-			vecty.Style("margin", "0"),
-		)
-	}
+	var ulstyle CSS
+	ulstyle.And("list-style", "none",
+		"background-color", "#444",
+	).AndIf(dims.Width > 600,
+		"margin", "auto",
+		"width", "100%",
+		"overflow", "auto",
+	).AndIf(dims.Width <= 600,
+		"text-align", "center",
+		"padding", "0",
+		"margin", "0",
+	)
 
 	return elem.Div(
 		elem.UnorderedList(
-			&NavItem{Name: "backends"},
-			&NavItem{Name: "perf"},
-			&NavItem{Name: "about"},
-			ulstyle,
+			&NavItem{Name: "proxy"},
+			&NavItem{Name: "containers"},
+			&NavItem{Name: "streams"},
+			ulstyle.Yield(),
 		),
 	)
 }
 
-// NavItem ...
+// NavItem represents an item in the top nav bar.
 type NavItem struct {
 	vecty.Core
 	hovered bool
@@ -245,38 +257,7 @@ type NavItem struct {
 
 // Render implements vecty.ComponentOrHTML
 func (ni *NavItem) Render() vecty.ComponentOrHTML {
-	var listyle vecty.MarkupList
 
-	if dims.Width > 600 {
-		listyle = vecty.Markup(
-			vecty.Style("font-family", "'Oswald', sans-serif"),
-			vecty.Style("font-size", "1.4em"),
-			vecty.Style("line-height", "50px"),
-			vecty.Style("height", "50px"),
-			vecty.Style("width", "120px"),
-			vecty.Style("float", "left"),
-		)
-	} else {
-		listyle = vecty.Markup(
-			vecty.Style("font-family", "'Oswald', sans-serif"),
-			vecty.Style("font-size", "1.2em"),
-			vecty.Style("line-height", "40px"),
-			vecty.Style("height", "40px"),
-			vecty.Style("border-bottom", "1px solid #888"),
-		)
-	}
-
-	var colr = ifElse(ni.hovered, "rgb(222, 222, 216)", "rgb(222, 222, 216)")
-	var bckgrnd = ifElse(ni.hovered, "rgb(135, 133, 133)", "rgb(89, 89, 89)")
-
-	var astyle vecty.MarkupList
-	astyle = vecty.Markup(
-		vecty.Style("text-decoration", "none"),
-		vecty.Style("color", colr),
-		vecty.Style("background-color", bckgrnd),
-		vecty.Style("display", "block"),
-		vecty.Style("transition", ".2s background-color"),
-	)
 	mo := event.MouseEnter(func(e *vecty.Event) {
 		ni.hovered = true
 		vecty.Rerender(ni)
@@ -286,102 +267,90 @@ func (ni *NavItem) Render() vecty.ComponentOrHTML {
 		vecty.Rerender(ni)
 	})
 
+	var listyle CSS
+	listyle.And(
+		"font-family", "'Oswald', sans-serif",
+	).AndIf(dims.Width > 600,
+		"font-size", "1.4em",
+		"line-height", "50px",
+		"height", "50px",
+		"width", "120px",
+		"float", "left",
+	).AndIf(dims.Width <= 600,
+		"font-size", "1.2em",
+		"line-height", "40px",
+		"height", "40px",
+		"border-bottom", "1px solid #888",
+	)
+
+	var astyle CSS
+	astyle.And("text-decoration", "none",
+		"display", "block",
+		"transition", ".2s background-color",
+		"color", "rgb(222, 222, 216)",
+	).AndIf(ni.hovered,
+		"background-color", "rgb(135, 133, 133)",
+	).AndIf(!ni.hovered,
+		"background-color", "rgb(89, 89, 89)")
+
 	return elem.ListItem(
 		elem.Anchor(
-			astyle,
-			vecty.Markup(vecty.Attribute("href", "#")),
+			astyle.Yield(),
+			// vecty.Markup(vecty.Attribute("href", "#")), // TODO
 			vecty.Text(ni.Name),
 		),
-		vecty.Markup(mo),
-		vecty.Markup(ml),
-		listyle,
+		vecty.Markup(mo, ml),
+		listyle.Yield(),
 	)
 }
 
-// if b, then i else e.
-func ifElse(b bool, i, e string) string {
+// CSS is our container type for multiple CSS styles. You cannot pass this to
+// an element directly, but must rather call its Yield method.
+type CSS struct {
+	Styles []vecty.Applyer
+}
+
+// Yield takes the CSS accumulated styles and creates a vecty.MarkupList, which
+// can be passed to an element.
+//
+// Example:
+//   var c CSS
+//   e := elem.Div(c.And("color", "red").Yield())
+func (c *CSS) Yield() vecty.MarkupList {
+	return vecty.Markup(c.Styles...)
+
+}
+
+func (c *CSS) multiApplyer(s ...string) {
+	if len(s)%2 != 0 {
+		panic("len must be multiple of 2")
+	}
+
+	var i = 0
+	for i < len(s) {
+		c.Styles = append(c.Styles, vecty.Style(s[i], s[i+1]))
+		i = i + 2
+	}
+}
+
+// And adds the styles no matter what. The number of styles must be a multiple of 2.
+func (c *CSS) And(styles ...string) *CSS {
+	c.multiApplyer(styles...)
+	return c
+}
+
+// AndIf adds the styles if b is true. The number of styles must be a multiple of 2.
+func (c *CSS) AndIf(b bool, styles ...string) *CSS {
 	if b {
-		return i
+		c.multiApplyer(styles...)
 	}
-	return e
+	return c
 }
 
-// MediaQuery ...
-type MediaQuery struct {
-	// Between
-	Common []vecty.ComponentOrHTML
-	Ranged []*MediaQueryStyle
+// NewCSS gives us a CSS from a list of property-value pairs. The number of styles
+// must be a multiple of 2.
+func NewCSS(styles ...string) *CSS {
+	var c CSS
+	c.multiApplyer(styles...)
+	return &c
 }
-
-// AddCommon ...
-func (mq *MediaQuery) AddCommon(styles ...vecty.ComponentOrHTML) *MediaQuery {
-	// for _, s := range styles {
-	// 	mq.Common = append(mq.Common, s)
-	// }
-	mq.Common = append(mq.Common, styles...)
-	return mq
-}
-
-func (mq *MediaQuery) AddRanged(min, max int, styles ...vecty.ComponentOrHTML) *MediaQuery {
-
-	mq.Ranged = append(mq.Ranged, &MediaQueryStyle{Min: min, Max: max, Styles: styles})
-	return mq
-}
-
-func (mq *MediaQuery) Apply() []vecty.List {
-	var ret []vecty.ComponentOrHTML
-	for _, c := range mq.Common {
-		ret = append(ret, c)
-	}
-
-	return nil
-}
-
-type MediaQueryStyle struct {
-	Min, Max int
-	Styles   []vecty.ComponentOrHTML
-}
-
-// Range ...
-type Range struct {
-	Min, Max int
-}
-
-// TODO fix this
-func (r *Range) Within(val int) bool {
-	if val >= r.Min && val <= r.Max {
-		return true
-	}
-	return false
-}
-
-// if between 0-600
-// if gt 600
-
-/*
-  .nav li {
-    width: 120px;
-    border-bottom: none;
-    height: 50px;
-    line-height: 50px;
-    font-size: 1.4em;
-  }
-
-
-  .nav li {
-    display: inline-block;
-    margin-right: -4px;
-  }
-
-  .nav li {
-    float: left;
-  }
-  .nav ul {
-    overflow: auto;
-    width: 600px;
-    margin: 0 auto;
-  }
-  .nav {
-    background-color: #444;
-  }
-*/
