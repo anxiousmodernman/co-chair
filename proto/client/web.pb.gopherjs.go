@@ -30,8 +30,10 @@ import (
 const _ = jspb.JspbPackageIsVersion2
 
 type Backend struct {
-	Domain string
-	Ips    []string
+	Domain       string
+	Ips          []string
+	HealthCheck  string
+	HealthStatus string
 }
 
 // GetDomain gets the Domain of the Backend.
@@ -50,6 +52,22 @@ func (m *Backend) GetIps() (x []string) {
 	return m.Ips
 }
 
+// GetHealthCheck gets the HealthCheck of the Backend.
+func (m *Backend) GetHealthCheck() (x string) {
+	if m == nil {
+		return x
+	}
+	return m.HealthCheck
+}
+
+// GetHealthStatus gets the HealthStatus of the Backend.
+func (m *Backend) GetHealthStatus() (x string) {
+	if m == nil {
+		return x
+	}
+	return m.HealthStatus
+}
+
 // MarshalToWriter marshals Backend to the provided writer.
 func (m *Backend) MarshalToWriter(writer jspb.Writer) {
 	if m == nil {
@@ -62,6 +80,14 @@ func (m *Backend) MarshalToWriter(writer jspb.Writer) {
 
 	for _, val := range m.Ips {
 		writer.WriteString(2, val)
+	}
+
+	if len(m.HealthCheck) > 0 {
+		writer.WriteString(3, m.HealthCheck)
+	}
+
+	if len(m.HealthStatus) > 0 {
+		writer.WriteString(4, m.HealthStatus)
 	}
 
 	return
@@ -86,6 +112,10 @@ func (m *Backend) UnmarshalFromReader(reader jspb.Reader) *Backend {
 			m.Domain = reader.ReadString()
 		case 2:
 			m.Ips = append(m.Ips, reader.ReadString())
+		case 3:
+			m.HealthCheck = reader.ReadString()
+		case 4:
+			m.HealthStatus = reader.ReadString()
 		default:
 			reader.SkipField()
 		}

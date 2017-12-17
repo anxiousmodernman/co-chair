@@ -18,6 +18,8 @@ service Proxy {
 message Backend {
     string domain = 1;
     repeated string ips = 2;
+    string health_check = 3;
+    string health_status = 4;
 }
 
 message ProxyState {
