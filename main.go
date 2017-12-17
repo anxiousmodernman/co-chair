@@ -203,13 +203,13 @@ func run(conf config.Config) error {
 		negroni.Wrap(websocketsProxy(wsproxy)),
 	)).Methods("POST")
 
-	p.Handle("/", negroni.New(
+	p.Handle("/frontend.js", negroni.New(
 		negroni.HandlerFunc(withLog),
 		negroni.HandlerFunc(IsAuthenticated),
 		negroni.Wrap(http.HandlerFunc(homeHandler)),
 	)).Methods("GET")
 
-	p.Handle("/frontend.js", negroni.New(
+	p.Handle("/", negroni.New(
 		negroni.HandlerFunc(withLog),
 		negroni.HandlerFunc(IsAuthenticated),
 		negroni.Wrap(http.HandlerFunc(homeHandler)),

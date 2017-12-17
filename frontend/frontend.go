@@ -93,14 +93,14 @@ type BackendList struct {
 func (bl *BackendList) Render() vecty.ComponentOrHTML {
 
 	buttonClicked := event.Click(func(e *vecty.Event) {
-		ctx := context.Background()
-		req := &client.StateRequest{}
+		var req client.StateRequest
 		// we use a goroutine here to avoid error from gopherjs:
 		// runtime error: cannot block in JavaScript callback, fix by wrapping code in goroutine
 		go func() {
-			resp, err := apiClient.State(ctx, req)
+			resp, err := apiClient.State(context.TODO(), &req)
 			if err != nil {
 				log.Println("ERROR:", err)
+				return
 			}
 
 			var listItems []*BackendItem
