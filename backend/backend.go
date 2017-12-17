@@ -108,11 +108,17 @@ func (p *Proxy) Remove(_ context.Context, b *server.Backend) (*server.OpResult, 
 }
 
 // BackendData is our type for the storm ORM. We can define field-level
-// constraints and indexes on struct tags.
+// constraints and indexes on struct tags. It is unfortunate that we
+// need an intermediary type, but it seems better than going in and
+// adding storm struct tags to generated code.
+//
+// See issue: https://github.com/golang/protobuf/issues/52
 type BackendData struct {
 	ID     int    `storm:"id,increment"`
 	Domain string `storm:"unique"`
 	IPs    []string
+	// An optional endpoint we can call, expecting HTTP 200
+	HealthCheck string
 }
 
 // AsBackend is a conversion method to a grpc-sendable type.

@@ -48,16 +48,16 @@ func TestProxyForwarder(t *testing.T) {
 	// Backend is a domain:port and a slice of ip addresses
 	backends := []server.Backend{
 		{
-			"server1",
-			[]string{server1.Addr},
+			Domain: "server1",
+			Ips:    []string{server1.Addr},
 		},
 		{
-			"server2",
-			[]string{server2.Addr},
+			Domain: "server2",
+			Ips:    []string{server2.Addr},
 		},
 		{
-			"server3",
-			[]string{server3.Addr},
+			Domain: "server3",
+			Ips:    []string{server3.Addr},
 		},
 	}
 
