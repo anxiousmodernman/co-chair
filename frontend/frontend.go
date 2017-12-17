@@ -80,6 +80,7 @@ func (p *Page) Render() vecty.ComponentOrHTML {
 // BackendList shows our configured proxy's state.
 type BackendList struct {
 	vecty.Core
+	// This might be eliminated in favor of using the store.
 	Items []*BackendItem
 }
 
@@ -125,18 +126,8 @@ func (bl *BackendList) Render() vecty.ComponentOrHTML {
 	)
 	items = append(items, grid.Yield())
 
-	// MarkupOrChild can hold a MarkupList (our grid styling),
-	// and lists of elem.Div
 	for _, bi := range bl.Items {
-		var box = NewCSS(
-			"background-color", "#444",
-			"color", "#fff",
-			"border-radius", "5px",
-			"padding", "20px",
-			"font-size", "100%",
-		)
-		items = append(items,
-			elem.Div(box.Yield(), vecty.Text(bi.Domain), vecty.Text(bi.IP)))
+		items = append(items, bi)
 	}
 
 	return elem.Div(
@@ -150,7 +141,7 @@ func (bl *BackendList) Render() vecty.ComponentOrHTML {
 
 }
 
-// BackendItem ...
+// BackendItem is one of our blocks on the grid of live proxies.
 type BackendItem struct {
 	Domain string
 	IP     string
@@ -159,11 +150,18 @@ type BackendItem struct {
 
 // Render implements vecty.ComponentOrHTML
 func (bl *BackendItem) Render() vecty.ComponentOrHTML {
-	return elem.ListItem(
-		elem.Div(
-			vecty.Text(bl.Domain),
-			vecty.Text(bl.IP),
-		),
+	var box = NewCSS(
+		"list-style-type", "none",
+		"background-color", "#444",
+		"color", "#fff",
+		"border-radius", "5px",
+		"padding", "20px",
+		"font-size", "100%",
+	)
+	return elem.Div(
+		box.Yield(),
+		vecty.Text(bl.Domain),
+		vecty.Text(bl.IP),
 	)
 }
 
