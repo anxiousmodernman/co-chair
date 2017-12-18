@@ -1,6 +1,7 @@
 package store
 
 import (
+	"log"
 	"strings"
 	"sync"
 )
@@ -9,7 +10,8 @@ import (
 type Store struct {
 	mtx         *sync.RWMutex
 	data        map[string]interface{}
-	subscribers map[string][]func()
+	subscribers map[string]map[int]func()
+	counter     int
 }
 
 // NewStore is our store constructor.
@@ -17,7 +19,7 @@ func NewStore() *Store {
 	var s Store
 	s.mtx = &sync.RWMutex{}
 	s.data = make(map[string]interface{})
-	s.subscribers = make(map[string][]func())
+	s.subscribers = make(map[string]map[int]func())
 	return &s
 }
 
@@ -39,21 +41,42 @@ func (s *Store) Get(key string) interface{} {
 	return s.data[key]
 }
 
-// Subscribe will call a callback on new puts to key.
-func (s *Store) Subscribe(key string, cb func()) {
+// Subscribe will call a callback on new puts to key. Returned
+// is the callback ID. Callers can store this and use it later to
+// de-register their callbacks.
+func (s *Store) Subscribe(key string, cb func()) int {
 	s.mtx.Lock()
+	s.counter++
 	defer s.mtx.Unlock()
 	if m, ok := s.subscribers[key]; ok {
-		m = append(m, cb)
+		// there are other subscribers to this key
+		m[s.counter] = cb
 		s.subscribers[key] = m
 	} else {
-		callbacks := []func(){cb}
-		m := make(map[string][]func())
-		m[key] = callbacks
+		m := make(map[int]func())
+		m[s.counter] = cb
+		s.subscribers[key] = m
+	}
+	log.Println("subscribed:", s.counter)
+	return s.counter
+}
+
+// Unsubscribe removes the callback associated with the given id.
+func (s *Store) Unsubscribe(callbackID int) {
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
+	for _, m := range s.subscribers {
+		for k := range m {
+			if k == callbackID {
+				// wacky golang delete syntax
+				delete(m, k)
+			}
+		}
 	}
 }
 
 func (s *Store) notify(key string) {
+	log.Println("notify!")
 	for k, vals := range s.subscribers {
 		if strings.HasPrefix(k, key) {
 			for _, fn := range vals {
