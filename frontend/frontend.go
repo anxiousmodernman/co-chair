@@ -130,15 +130,14 @@ func (bl *BackendList) Render() vecty.ComponentOrHTML {
 		items = append(items, bi)
 	}
 
+	// Add another component for the "+" sign; A UI component to add new proxies.
+	items = append(items, &BackendItemPlusSign{i: len(items) + 1})
+
 	return elem.Div(
 		elem.Div(items...),
-		elem.Button(
-			vecty.Text("Refresh"),
-			vecty.Markup(buttonClicked),
-		),
+		elem.Button(vecty.Text("Refresh"), vecty.Markup(buttonClicked)),
 		&AddProxyForm{},
 	)
-
 }
 
 // BackendItem is one of our blocks on the grid of live proxies.
@@ -158,11 +157,40 @@ func (bl *BackendItem) Render() vecty.ComponentOrHTML {
 		"padding", "20px",
 		"font-size", "100%",
 	)
-	return elem.Div(
-		box.Yield(),
-		vecty.Text(bl.Domain),
-		vecty.Text(bl.IP),
+	return elem.Div(box.Yield(), vecty.Text(bl.Domain), vecty.Text(bl.IP))
+}
+
+// BackendItemPlusSign ...
+type BackendItemPlusSign struct {
+	i        int
+	expanded bool
+	vecty.Core
+}
+
+// Render implements vecty.ComponentOrHTML
+func (plus *BackendItemPlusSign) Render() vecty.ComponentOrHTML {
+	open := event.Click(func(e *vecty.Event) {
+		plus.expanded = true
+		vecty.Rerender(plus)
+	})
+
+	var box *CSS
+	box = NewCSS(
+		"list-style-type", "none",
+		"background-color", "#444",
+		"color", "#fff",
+		"border-radius", "5px",
+		"padding", "20px",
+		"font-size", "200%",
+		"text-align", "center",
 	)
+
+	var div *vecty.HTML
+	if !plus.expanded {
+		div = elem.Div(box.Yield(), vecty.Text("+"), vecty.Markup(open))
+	}
+
+	return div
 }
 
 // AddProxyForm form is a small stateful component. IP and Domain are set on the
