@@ -32,6 +32,7 @@ func FromCLIOpts(ctx *cli.Context) (Config, error) {
 	c.ProxyCert = ctx.String("proxyCert")
 	c.ProxyKey = ctx.String("proxyKey")
 	c.ProxyPort = ctx.String("proxyPort")
+	c.ProxyInsecurePort = ctx.String("proxyInsecurePort")
 	c.Auth0ClientID = ctx.String("auth0ClientID")
 	c.Auth0Secret = ctx.String("auth0Secret")
 	c.Auth0Domain = ctx.String("auth0Domain")
@@ -64,15 +65,23 @@ type Config struct {
 	// ProxyCert and  are paths to PEM-encoded TLS assets
 	// for our GopherJS-over-websockets UI. This UI is wrapped with
 	// auth0 handlers.
-	ProxyCert string `toml:"proxy_cert"`
-	ProxyKey  string `toml:"proxy_key"`
-	ProxyPort string `toml:"proxy_port"`
+	ProxyCert         string `toml:"proxy_cert"`
+	ProxyKey          string `toml:"proxy_key"`
+	ProxyPort         string `toml:"proxy_port"`
+	ProxyInsecurePort string `toml:"proxy_insecure_port"`
 
 	// Auth0 config values
 	Auth0ClientID string `toml:"auth0_client_id"`
 	Auth0Secret   string `toml:"auth0_secret"`
 	Auth0Domain   string `toml:"auth0_domain"`
 	BypassAuth0   bool   `toml:"bypass_auth0"`
+}
+
+// Secret is our string that won't print itself.
+type Secret string
+
+func (s Secret) String() string {
+	return "<redacted>"
 }
 
 // ExampleConfig can be written to disk. See the systemd-install command.
@@ -87,11 +96,17 @@ var ExampleConfig = `
 	api_key = ""
 	api_port = "1917"
 
-	# WebUICert and WebUIKey are paths to PEM-encoded TLS assets
+	# webui_cert and webui_key are paths to PEM-encoded TLS assets
 	# for our GopherJS-over-websockets UI. This UI is wrapped with
 	# auth0 handlers.
 	webui_cert = ""
 	webui_key = ""
+
+	# webui_domain is our fully-qualified domain name; note that
+	# "localhost" is only suitable for local development. If you
+	# want this co-chair instance to serve clients on the internet,
+	# the domain provided here needs to be in the public DNS.
+	webui_domain = "localhost"
 	webui_port = "2016"
 
 
