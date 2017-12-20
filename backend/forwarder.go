@@ -3,6 +3,7 @@ package backend
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -18,9 +19,10 @@ import (
 // ProxyForwarder is our type that actually handles connections from the
 // internet that want to proxy to services behind co-chair.
 type ProxyForwarder struct {
-	fwd     *forward.Forwarder
-	logger  *logrus.Logger
-	metrics chan *bytes.Buffer
+	fwd         *forward.Forwarder
+	logger      *logrus.Logger
+	metrics     chan *bytes.Buffer
+	metricsStop chan bool
 	// ProxyClient is itself an interface, so we do not use a pointer here
 	// in our struct definition. But if a pointer to a concrete implementation
 	// is passed, "c" will still be a pointer/reference, so we can share the
@@ -90,6 +92,8 @@ func (pf *ProxyForwarder) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				r.URL = testutils.ParseURI(protocolFmt(r) + upstreams.Backends[0].Ips[0])
 				pf.logger.Infof("proxying %s -> %s", dom, r.Host)
 
+				// TODO: re-use a pool of buffers for GC optimization:
+				// https://blog.cloudflare.com/recycling-memory-buffers-in-go/
 				var buf bytes.Buffer
 				tracer, err := trace.New(pf.fwd, &buf)
 				if err != nil {
@@ -98,9 +102,10 @@ func (pf *ProxyForwarder) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				}
 
 				tracer.ServeHTTP(w, r)
-				go func() {
-					pf.metrics <- &buf
-				}()
+				// TODO sensible, fast metrics serialization?
+				//go func() {
+				//	pf.metrics <- &buf
+				//}()
 				return
 			}
 		}
@@ -112,12 +117,40 @@ func (pf *ProxyForwarder) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func (pf *ProxyForwarder) startMetricsListener() {
 
-	for {
-		select {
-		case m := <-pf.metrics:
-			_ = m
+	go func() {
+		// let's tempt fate with a long-lived stream to the grpc server.
+		stream, err := pf.c.PutKVStream(context.TODO())
+		if err != nil {
+			pf.logger.Errorf("PutKVStream: %v", err)
+			return
 		}
-	}
+		for {
+			select {
+			case m := <-pf.metrics:
+				var k, v []byte
+				_ = k
+				// deserialize m to review timestamp
+				var record TimedRecord
+				err = json.Unmarshal(m.Bytes(), &record)
+				if err != nil {
+					pf.logger.Errorf("malformed trace record: %v", err)
+					continue
+				}
+
+				// TODO some inefficient re-serialization going on here.
+
+				kv := server.KV{Key: record.TS, Value: v}
+				stream.Send(&kv)
+			case <-pf.metricsStop:
+				return
+			}
+		}
+	}()
+}
+
+type TimedRecord struct {
+	TS   []byte
+	Data trace.Record
 }
 
 func orElse(a, b string) string {

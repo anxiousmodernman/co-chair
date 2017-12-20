@@ -3,6 +3,7 @@
 package main
 
 import (
+	"log"
 	"strings"
 
 	"honnef.co/go/js/dom"
@@ -260,6 +261,7 @@ func (apf *AddProxyForm) onSubmit(e *vecty.Event) {
 	req := &client.Backend{}
 	req.Domain = apf.Domain
 	req.Ips = []string{apf.IP}
+	log.Println("put request", req)
 	api.PutBackend(state, apiClient, req)
 }
 

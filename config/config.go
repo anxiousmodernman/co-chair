@@ -16,6 +16,7 @@ func FromCLIOpts(ctx *cli.Context) Config {
 	c.ProxyKey = ctx.String("proxyKey")
 	c.Auth0ClientID = ctx.String("auth0ClientID")
 	c.Auth0Secret = ctx.String("auth0Secret")
+	c.BypassAuth0 = ctx.BoolT("bypassAuth0")
 	return c
 }
 
@@ -43,4 +44,5 @@ type Config struct {
 
 	// Auth0 config values
 	Auth0ClientID, Auth0Secret string
+	BypassAuth0                bool
 }

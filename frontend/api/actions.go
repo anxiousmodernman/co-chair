@@ -30,9 +30,8 @@ func ProxyState(s *store.Store, c client.ProxyClient) {
 
 func PutBackend(s *store.Store, c client.ProxyClient, b *client.Backend) {
 	ctx := context.TODO()
-	req := &client.Backend{}
 	go func() {
-		_, err := c.Put(ctx, req)
+		_, err := c.Put(ctx, b)
 		if err != nil {
 			log.Println("ERROR:", err)
 			return
