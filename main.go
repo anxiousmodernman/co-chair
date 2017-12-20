@@ -94,6 +94,12 @@ func main() {
 		Value: "./key.pem",
 	}
 
+	apiPort := cli.StringFlag{
+		Name:  "apiPort",
+		Usage: "port number for grpc mgmt api",
+		Value: "1917",
+	}
+
 	webCert := cli.StringFlag{
 		Name:  "webUICert",
 		Usage: "for web ui: path to pem encoded tls certificate",
@@ -106,6 +112,12 @@ func main() {
 		Value: "./key.pem",
 	}
 
+	webPort := cli.StringFlag{
+		Name:  "webPort",
+		Usage: "port number for web ui",
+		Value: "2016",
+	}
+
 	proxyCert := cli.StringFlag{
 		Name:  "proxyCert",
 		Usage: "for web ui: path to pem encoded tls certificate",
@@ -116,6 +128,12 @@ func main() {
 		Name:  "proxyKey",
 		Usage: "for web ui: path to pem encoded tls private key",
 		Value: "./key.pem",
+	}
+
+	proxyPort := cli.StringFlag{
+		Name:  "proxyPort",
+		Usage: "port number for http proxy",
+		Value: "8080",
 	}
 
 	auth0ClientID := cli.StringFlag{
@@ -139,11 +157,14 @@ func main() {
 		cli.Command{
 			Name:  "serve",
 			Usage: "run co-chair",
-			Flags: []cli.Flag{dbFlag, apiCert, apiKey, webCert, webKey,
-				proxyCert, proxyKey, auth0ClientID, auth0Secret, bypassAuth0, conf},
+			Flags: []cli.Flag{dbFlag, apiCert, apiKey, apiPort, webCert,
+				webKey, webPort, proxyCert, proxyKey, proxyPort, auth0ClientID,
+				auth0Secret, bypassAuth0, conf},
 			Action: func(ctx *cli.Context) error {
-				var conf config.Config
-				conf = config.FromCLIOpts(ctx)
+				conf, err := config.FromCLIOpts(ctx)
+				if err != nil {
+					return err
+				}
 				return run(conf)
 			},
 		},
@@ -152,8 +173,10 @@ func main() {
 			Usage: "installs a unit file and config directory",
 			Flags: []cli.Flag{conf},
 			Action: func(ctx *cli.Context) error {
-				var conf config.Config
-				conf = config.FromCLIOpts(ctx)
+				conf, err := config.FromCLIOpts(ctx)
+				if err != nil {
+					return err
+				}
 				return config.SystemDInstall(conf)
 			},
 		},
@@ -177,7 +200,7 @@ func run(conf config.Config) error {
 	// Pure-gRPC instance management API
 	grpcOnlyServer := grpc.NewServer()
 	server.RegisterProxyServer(grpcOnlyServer, px)
-	lis, err := net.Listen("tcp", "127.0.0.1:1917")
+	lis, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%s", conf.APIPort))
 	if err != nil {
 		return fmt.Errorf("listener error: %v", err)
 	}
@@ -247,7 +270,7 @@ func run(conf config.Config) error {
 		negroni.Wrap(http.HandlerFunc(homeHandler)),
 	)).Methods("GET")
 
-	addr := "0.0.0.0:2016"
+	addr := fmt.Sprintf("0.0.0.0:%s", conf.WebUIPort)
 	httpsSrv := &http.Server{
 		Addr:    addr,
 		Handler: p,
@@ -275,9 +298,10 @@ func run(conf config.Config) error {
 	}()
 
 	go func() {
-		fwdr, _ := backend.NewProxyForwarder("127.0.0.1:1917", logger)
+		// we assume api is on localhost
+		fwdr, _ := backend.NewProxyForwarder(fmt.Sprintf("127.0.0.1:%s", conf.APIPort), logger)
 		s := &http.Server{
-			Addr:    ":8080",
+			Addr:    fmt.Sprintf(":%s", conf.ProxyPort),
 			Handler: fwdr,
 		}
 		proxy <- s.ListenAndServe()

@@ -5,25 +5,36 @@ import (
 	"io/ioutil"
 	"os"
 
+	"github.com/BurntSushi/toml"
 	"github.com/urfave/cli"
 )
 
 // FromCLIOpts builds a Config from command line options and env vars.
 // The urfave/cli Context gives us access to both on program start, and also
 // allows us to set defaults.
-func FromCLIOpts(ctx *cli.Context) Config {
+func FromCLIOpts(ctx *cli.Context) (Config, error) {
 	var c Config
+	if conf := ctx.String("conf"); conf != "" {
+		_, err := toml.DecodeFile(conf, &c)
+		if err != nil {
+			return c, err
+		}
+		return c, nil
+	}
 	c.DBPath = ctx.String("db")
 	c.APICert = ctx.String("apiCert")
 	c.APIKey = ctx.String("apiKey")
+	c.APIPort = ctx.String("apiPort")
 	c.WebUICert = ctx.String("webUICert")
 	c.WebUIKey = ctx.String("webUIKey")
+	c.WebUIPort = ctx.String("webUIPort")
 	c.ProxyCert = ctx.String("proxyCert")
 	c.ProxyKey = ctx.String("proxyKey")
+	c.ProxyPort = ctx.String("proxyPort")
 	c.Auth0ClientID = ctx.String("auth0ClientID")
 	c.Auth0Secret = ctx.String("auth0Secret")
 	c.BypassAuth0 = ctx.BoolT("bypassAuth0")
-	return c
+	return c, nil
 }
 
 // The Config struct. Contains config values suitable for multiple processes we
@@ -38,18 +49,21 @@ type Config struct {
 	// for our pure gRPC api
 	APICert string `toml:"api_cert"`
 	APIKey  string `toml:"api_key"`
+	APIPort string `toml:"api_port"`
 
 	// WebUICert and WebUIKey are paths to PEM-encoded TLS assets
 	// for our GopherJS-over-websockets UI. This UI is wrapped with
 	// auth0 handlers.
 	WebUICert string `toml:"webui_cert"`
 	WebUIKey  string `toml:"webui_key"`
+	WebUIPort string `toml:"webui_port"`
 
 	// ProxyCert and  are paths to PEM-encoded TLS assets
 	// for our GopherJS-over-websockets UI. This UI is wrapped with
 	// auth0 handlers.
 	ProxyCert string `toml:"proxy_cert"`
 	ProxyKey  string `toml:"proxy_key"`
+	ProxyPort string `toml:"proxy_port"`
 
 	// Auth0 config values
 	Auth0ClientID string `toml:"auth0_client_id"`
@@ -67,18 +81,21 @@ var ExampleConfig = `
 	# for our pure gRPC api
 	api_cert = ""
 	api_key = ""
+	api_port = "1917"
 
 	# WebUICert and WebUIKey are paths to PEM-encoded TLS assets
 	# for our GopherJS-over-websockets UI. This UI is wrapped with
 	# auth0 handlers.
 	webui_cert = ""
-	webui_key = ""
+	webui_key = "2016"
+
 
 	# ProxyCert and  are paths to PEM-encoded TLS assets
 	# for our GopherJS-over-websockets UI. This UI is wrapped with
 	# auth0 handlers.
 	proxy_cert = ""
 	proxy_key = ""
+	proxy_port = "443"
 
 	# Auth0 config values
 	auth0_client_id = ""
