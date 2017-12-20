@@ -32,6 +32,7 @@ func FromCLIOpts(ctx *cli.Context) (Config, error) {
 	c.ProxyCert = ctx.String("proxyCert")
 	c.ProxyKey = ctx.String("proxyKey")
 	c.ProxyPort = ctx.String("proxyPort")
+	c.ProxyInsecurePort = ctx.String("proxyInsecurePort")
 	c.Auth0ClientID = ctx.String("auth0ClientID")
 	c.Auth0Secret = ctx.String("auth0Secret")
 	c.Auth0Domain = ctx.String("auth0Domain")
@@ -64,9 +65,10 @@ type Config struct {
 	// ProxyCert and  are paths to PEM-encoded TLS assets
 	// for our GopherJS-over-websockets UI. This UI is wrapped with
 	// auth0 handlers.
-	ProxyCert string `toml:"proxy_cert"`
-	ProxyKey  string `toml:"proxy_key"`
-	ProxyPort string `toml:"proxy_port"`
+	ProxyCert         string `toml:"proxy_cert"`
+	ProxyKey          string `toml:"proxy_key"`
+	ProxyPort         string `toml:"proxy_port"`
+	ProxyInsecurePort string `toml:"proxy_insecure_port"`
 
 	// Auth0 config values
 	Auth0ClientID string `toml:"auth0_client_id"`
