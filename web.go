@@ -48,8 +48,8 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 	oauthConf := &oauth2.Config{
 		ClientID:     conf.Auth0ClientID,
 		ClientSecret: conf.Auth0Secret,
-		RedirectURL: fmt.Sprintf(
-			"https://localhost:%s/auth/auth0/callback", conf.WebUIPort),
+		RedirectURL: fmt.Sprintf("https://%s:%s/auth/auth0/callback",
+			conf.WebUIDomain, conf.WebUIPort),
 		Scopes: []string{"openid", "profile"},
 		Endpoint: oauth2.Endpoint{
 			AuthURL:  "https://" + domain + "/authorize",
@@ -105,7 +105,8 @@ func logoutHandler(w http.ResponseWriter, r *http.Request) {
 
 	u.Path += "/auth/auth0/logout"
 	parameters := url.Values{}
-	parameters.Add("returnTo", fmt.Sprintf("https://localhost:%s", conf.WebUIPort))
+	parameters.Add("returnTo", fmt.Sprintf("https://%s:%s",
+		conf.WebUIDomain, conf.WebUIPort))
 	parameters.Add("client_id", conf.Auth0ClientID)
 	u.RawQuery = parameters.Encode()
 
@@ -119,8 +120,8 @@ func oauthCallbackHandler(w http.ResponseWriter, r *http.Request) {
 	oauthConf := &oauth2.Config{
 		ClientID:     conf.Auth0ClientID,
 		ClientSecret: conf.Auth0Secret,
-		RedirectURL: fmt.Sprintf(
-			"https://localhost:%s/auth/auth0/callback", conf.WebUIPort),
+		RedirectURL: fmt.Sprintf("https://%s:%s/auth/auth0/callback",
+			conf.WebUIDomain, conf.WebUIPort),
 		Scopes: []string{"openid", "profile"},
 		Endpoint: oauth2.Endpoint{
 			AuthURL:  "https://" + domain + "/authorize",
