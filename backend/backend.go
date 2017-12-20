@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"sort"
 	"strings"
 
@@ -43,6 +44,7 @@ func (p *Proxy) State(_ context.Context, req *server.StateRequest) (*server.Prox
 		return nil, fmt.Errorf("domain: %s; db error: %v", req.Domain, err)
 	}
 	for _, b := range backends {
+		fmt.Println("backend:", *b)
 		resp.Backends = append(resp.Backends, b.AsBackend())
 	}
 
@@ -72,6 +74,50 @@ func (p *Proxy) Put(ctx context.Context, b *server.Backend) (*server.OpResult, e
 	resp := &server.OpResult{200, "Ok"}
 
 	return resp, nil
+}
+
+// PutKVStream lets us stream key-value pairs into our db.
+func (p *Proxy) PutKVStream(stream server.Proxy_PutKVStreamServer) error {
+
+	for {
+		kv, err := stream.Recv()
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return err
+		}
+		if err := p.DB.SetBytes("streams", kv.Key, kv.Value); err != nil {
+			return fmt.Errorf("SetBytes: %v", err)
+		}
+	}
+	return nil
+}
+
+// GetKVStream scans a keyspace.
+func (p *Proxy) GetKVStream(key *server.Key, stream server.Proxy_GetKVStreamServer) error {
+
+	tx, err := p.DB.Bolt.Begin(false)
+	if err != nil {
+		return fmt.Errorf("db error: %v", err)
+	}
+	c := tx.Bucket([]byte("streams")).Cursor()
+
+	// Our time range spans the 90's decade.
+	// RFC3339
+	//min := []byte("1990-01-01T00:00:00Z")
+	//max := []byte("2000-01-01T00:00:00Z")
+
+	// Iterate over the 90's.
+	for k, v := c.Seek(key.Prefix); k != nil || false; /* could do something besides "false" */ k, v = c.Next() {
+		fmt.Printf("%s: %s\n", k, v)
+		kv := server.KV{Key: k, Value: v}
+		err := stream.Send(&kv)
+		if err != nil {
+			return fmt.Errorf("send: %v", err)
+		}
+	}
+	return nil
 }
 
 func combine(a, b []string) []string {

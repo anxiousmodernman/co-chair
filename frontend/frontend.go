@@ -3,7 +3,6 @@
 package main
 
 import (
-	"context"
 	"log"
 	"strings"
 
@@ -14,22 +13,31 @@ import (
 	"github.com/gopherjs/vecty/elem"
 	"github.com/gopherjs/vecty/event"
 	"github.com/gopherjs/vecty/prop"
+	"gitlab.com/DSASanFrancisco/co-chair/frontend/api"
 	"gitlab.com/DSASanFrancisco/co-chair/frontend/store"
 	"gitlab.com/DSASanFrancisco/co-chair/proto/client"
 )
 
-var apiClient client.ProxyClient
+var (
+	apiClient client.ProxyClient
+	state     *store.Store
+	dims      Dims
+	document  = dom.GetWindow().Document().(dom.HTMLDocument)
+)
 
-var state *store.Store
+// InitStore initializes the state for our app.
+func InitStore(s *store.Store, c client.ProxyClient) {
+	// Note: we have to keep track of paths explicitly.
+	s.Put("proxy.form.active", false)
+	s.Put("proxy.list", make([]*client.Backend, 0))
+	// Populate the store with api calls
+	api.ProxyState(s, c)
+}
 
 // Dims is a type for window dimensions
 type Dims struct {
 	Width, Height int64
 }
-
-var dims Dims
-
-var document = dom.GetWindow().Document().(dom.HTMLDocument)
 
 // no-op main
 func main() {}
@@ -57,6 +65,7 @@ func setup() {
 
 	serverAddr := strings.TrimSuffix(document.BaseURI(), "/")
 	apiClient = client.NewProxyClient(serverAddr)
+	InitStore(state, apiClient)
 
 	vecty.RenderBody(p)
 }
@@ -80,32 +89,28 @@ func (p *Page) Render() vecty.ComponentOrHTML {
 // BackendList shows our configured proxy's state.
 type BackendList struct {
 	vecty.Core
-	Items []*BackendItem
+	// This might be eliminated in favor of using the store.
+	//Items []*BackendItem
+	// a slice of callback ids to de-register in our Unmount method.
+	callbacks []int
+}
+
+// Mount ...
+func (bl *BackendList) Mount() {
+	rerender := func() { vecty.Rerender(bl) }
+	state.Subscribe("proxy.list", rerender)
+	state.Subscribe("proxy.form.active", rerender)
+}
+
+// Unmount ...
+func (bl *BackendList) Unmount() {
+	for _, id := range bl.callbacks {
+		state.Unsubscribe(id)
+	}
 }
 
 // Render implements vecty.ComponentOrHTML
 func (bl *BackendList) Render() vecty.ComponentOrHTML {
-
-	buttonClicked := event.Click(func(e *vecty.Event) {
-		var req client.StateRequest
-		// we use a goroutine here to avoid error from gopherjs:
-		// runtime error: cannot block in JavaScript callback, fix by wrapping code in goroutine
-		go func() {
-			resp, err := apiClient.State(context.TODO(), &req)
-			if err != nil {
-				log.Println("ERROR:", err)
-				return
-			}
-
-			var listItems []*BackendItem
-			for _, li := range resp.Backends {
-				bi := &BackendItem{Domain: li.Domain}
-				listItems = append(listItems, bi)
-			}
-			bl.Items = listItems
-			vecty.Rerender(bl)
-		}()
-	})
 
 	// items will become a list of backends blocked out in a grid. Backends is
 	// a heterogeneous list of styles and Divs
@@ -125,32 +130,29 @@ func (bl *BackendList) Render() vecty.ComponentOrHTML {
 	)
 	items = append(items, grid.Yield())
 
-	// MarkupOrChild can hold a MarkupList (our grid styling),
-	// and lists of elem.Div
-	for _, bi := range bl.Items {
-		var box = NewCSS(
-			"background-color", "#444",
-			"color", "#fff",
-			"border-radius", "5px",
-			"padding", "20px",
-			"font-size", "100%",
-		)
-		items = append(items,
-			elem.Div(box.Yield(), vecty.Text(bi.Domain), vecty.Text(bi.IP)))
+	// Show either, "+" or new form
+	formActive := state.Get("proxy.form.active").(bool)
+	// Add another component for the "+" sign; A UI component to add new proxies.
+	if formActive {
+		// show awesome form
+		items = append(items, &AddProxyForm{})
+	} else {
+		// show proxy list
+		if backends, ok := state.Get("proxy.list").([]*client.Backend); ok {
+			for _, b := range backends {
+				bi := BackendItem{Domain: b.Domain}
+				items = append(items, &bi)
+			}
+			items = append(items, &BackendItemPlusSign{i: len(items) + 1})
+		}
 	}
 
 	return elem.Div(
 		elem.Div(items...),
-		elem.Button(
-			vecty.Text("Refresh"),
-			vecty.Markup(buttonClicked),
-		),
-		&AddProxyForm{},
 	)
-
 }
 
-// BackendItem ...
+// BackendItem is one of our blocks on the grid of live proxies.
 type BackendItem struct {
 	Domain string
 	IP     string
@@ -159,12 +161,44 @@ type BackendItem struct {
 
 // Render implements vecty.ComponentOrHTML
 func (bl *BackendItem) Render() vecty.ComponentOrHTML {
-	return elem.ListItem(
-		elem.Div(
-			vecty.Text(bl.Domain),
-			vecty.Text(bl.IP),
-		),
+	var box = NewCSS(
+		"list-style-type", "none",
+		"background-color", "#444",
+		"color", "#fff",
+		"border-radius", "5px",
+		"padding", "20px",
+		"font-size", "100%",
 	)
+	return elem.Div(box.Yield(), vecty.Text(bl.Domain), vecty.Text(bl.IP))
+}
+
+// BackendItemPlusSign ...
+type BackendItemPlusSign struct {
+	i int
+	vecty.Core
+}
+
+// Render implements vecty.ComponentOrHTML
+func (plus *BackendItemPlusSign) Render() vecty.ComponentOrHTML {
+	open := event.Click(func(e *vecty.Event) {
+		state.Put("proxy.form.active", true)
+	})
+
+	var box *CSS
+	box = NewCSS(
+		"list-style-type", "none",
+		"background-color", "#444",
+		"color", "#fff",
+		"border-radius", "5px",
+		"padding", "20px",
+		"font-size", "200%",
+		"text-align", "center",
+	)
+
+	var div *vecty.HTML
+	div = elem.Div(box.Yield(), vecty.Text("+"), vecty.Markup(open))
+
+	return div
 }
 
 // AddProxyForm form is a small stateful component. IP and Domain are set on the
@@ -174,6 +208,41 @@ type AddProxyForm struct {
 	vecty.Core
 	IP     string
 	Domain string
+}
+
+// Render implements vecty.ComponentOrHTML
+func (apf *AddProxyForm) Render() vecty.ComponentOrHTML {
+
+	var form *CSS
+	form = NewCSS(
+		"align", "right",
+		"list-style-type", "none",
+		"background-color", "#444",
+		"color", "#fff",
+		"border-radius", "5px",
+		"padding", "15px",
+		"display", "grid",
+	).AndIf(dims.Width < 600,
+		"grid-template-columns", "repeat(1, 80%)",
+	).AndIf(dims.Width >= 600,
+		"grid-template-columns", "40% 40% 20%",
+		"grid-column-start", "1",
+		"grid-column-end", "5",
+		"height", "250px",
+	)
+
+	return elem.Div(form.Yield(),
+		elem.Div(elem.Label(vecty.Text("domain")),
+			elem.Input(vecty.Markup(prop.Value(apf.Domain), event.Input(apf.onDomainInput)))),
+		elem.Div(elem.Label(vecty.Text("ip")),
+			elem.Input(vecty.Markup(prop.Value(apf.IP), event.Input(apf.onIPInput)))),
+		elem.Div(
+			elem.Button(
+				vecty.Text("Add"),
+				vecty.Markup(event.Click(apf.onSubmit)),
+			),
+		),
+	)
 }
 
 // onIPInput modifies our internal state. We maintain internal state to collect
@@ -189,31 +258,11 @@ func (apf *AddProxyForm) onDomainInput(e *vecty.Event) {
 }
 
 func (apf *AddProxyForm) onSubmit(e *vecty.Event) {
-	ctx := context.Background()
 	req := &client.Backend{}
 	req.Domain = apf.Domain
 	req.Ips = []string{apf.IP}
-	go func() {
-		_, err := apiClient.Put(ctx, req)
-		if err != nil {
-			log.Println("ERROR:", err)
-		}
-		vecty.Rerender(apf)
-	}()
-}
-
-// Render implements vecty.ComponentOrHTML
-func (apf *AddProxyForm) Render() vecty.ComponentOrHTML {
-	return elem.Div(
-		elem.Label(vecty.Text("domain")),
-		elem.Input(vecty.Markup(prop.Value(apf.Domain), event.Input(apf.onDomainInput))),
-		elem.Label(vecty.Text("ip")),
-		elem.Input(vecty.Markup(prop.Value(apf.IP), event.Input(apf.onIPInput))),
-		elem.Button(
-			vecty.Text("Add"),
-			vecty.Markup(event.Click(apf.onSubmit)),
-		),
-	)
+	log.Println("put request", req)
+	api.PutBackend(state, apiClient, req)
 }
 
 // NavComponent ...

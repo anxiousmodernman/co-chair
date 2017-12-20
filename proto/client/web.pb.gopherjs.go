@@ -11,6 +11,8 @@
 
 	It has these top-level messages:
 		Backend
+		Key
+		KV
 		ProxyState
 		OpResult
 		StateRequest
@@ -126,6 +128,147 @@ func (m *Backend) UnmarshalFromReader(reader jspb.Reader) *Backend {
 
 // Unmarshal unmarshals a Backend from a slice of bytes.
 func (m *Backend) Unmarshal(rawBytes []byte) (*Backend, error) {
+	reader := jspb.NewReader(rawBytes)
+
+	m = m.UnmarshalFromReader(reader)
+
+	if err := reader.Err(); err != nil {
+		return nil, err
+	}
+
+	return m, nil
+}
+
+type Key struct {
+	Prefix []byte
+}
+
+// GetPrefix gets the Prefix of the Key.
+func (m *Key) GetPrefix() (x []byte) {
+	if m == nil {
+		return x
+	}
+	return m.Prefix
+}
+
+// MarshalToWriter marshals Key to the provided writer.
+func (m *Key) MarshalToWriter(writer jspb.Writer) {
+	if m == nil {
+		return
+	}
+
+	if len(m.Prefix) > 0 {
+		writer.WriteBytes(1, m.Prefix)
+	}
+
+	return
+}
+
+// Marshal marshals Key to a slice of bytes.
+func (m *Key) Marshal() []byte {
+	writer := jspb.NewWriter()
+	m.MarshalToWriter(writer)
+	return writer.GetResult()
+}
+
+// UnmarshalFromReader unmarshals a Key from the provided reader.
+func (m *Key) UnmarshalFromReader(reader jspb.Reader) *Key {
+	for reader.Next() {
+		if m == nil {
+			m = &Key{}
+		}
+
+		switch reader.GetFieldNumber() {
+		case 1:
+			m.Prefix = reader.ReadBytes()
+		default:
+			reader.SkipField()
+		}
+	}
+
+	return m
+}
+
+// Unmarshal unmarshals a Key from a slice of bytes.
+func (m *Key) Unmarshal(rawBytes []byte) (*Key, error) {
+	reader := jspb.NewReader(rawBytes)
+
+	m = m.UnmarshalFromReader(reader)
+
+	if err := reader.Err(); err != nil {
+		return nil, err
+	}
+
+	return m, nil
+}
+
+type KV struct {
+	Key   []byte
+	Value []byte
+}
+
+// GetKey gets the Key of the KV.
+func (m *KV) GetKey() (x []byte) {
+	if m == nil {
+		return x
+	}
+	return m.Key
+}
+
+// GetValue gets the Value of the KV.
+func (m *KV) GetValue() (x []byte) {
+	if m == nil {
+		return x
+	}
+	return m.Value
+}
+
+// MarshalToWriter marshals KV to the provided writer.
+func (m *KV) MarshalToWriter(writer jspb.Writer) {
+	if m == nil {
+		return
+	}
+
+	if len(m.Key) > 0 {
+		writer.WriteBytes(1, m.Key)
+	}
+
+	if len(m.Value) > 0 {
+		writer.WriteBytes(2, m.Value)
+	}
+
+	return
+}
+
+// Marshal marshals KV to a slice of bytes.
+func (m *KV) Marshal() []byte {
+	writer := jspb.NewWriter()
+	m.MarshalToWriter(writer)
+	return writer.GetResult()
+}
+
+// UnmarshalFromReader unmarshals a KV from the provided reader.
+func (m *KV) UnmarshalFromReader(reader jspb.Reader) *KV {
+	for reader.Next() {
+		if m == nil {
+			m = &KV{}
+		}
+
+		switch reader.GetFieldNumber() {
+		case 1:
+			m.Key = reader.ReadBytes()
+		case 2:
+			m.Value = reader.ReadBytes()
+		default:
+			reader.SkipField()
+		}
+	}
+
+	return m
+}
+
+// Unmarshal unmarshals a KV from a slice of bytes.
+func (m *KV) Unmarshal(rawBytes []byte) (*KV, error) {
 	reader := jspb.NewReader(rawBytes)
 
 	m = m.UnmarshalFromReader(reader)
@@ -393,6 +536,8 @@ type ProxyClient interface {
 	State(ctx context.Context, in *StateRequest, opts ...grpcweb.CallOption) (*ProxyState, error)
 	Put(ctx context.Context, in *Backend, opts ...grpcweb.CallOption) (*OpResult, error)
 	Remove(ctx context.Context, in *Backend, opts ...grpcweb.CallOption) (*OpResult, error)
+	PutKVStream(ctx context.Context, opts ...grpcweb.CallOption) (Proxy_PutKVStreamClient, error)
+	GetKVStream(ctx context.Context, in *Key, opts ...grpcweb.CallOption) (Proxy_GetKVStreamClient, error)
 }
 
 type proxyClient struct {
@@ -431,4 +576,73 @@ func (c *proxyClient) Remove(ctx context.Context, in *Backend, opts ...grpcweb.C
 	}
 
 	return new(OpResult).Unmarshal(resp)
+}
+
+func (c *proxyClient) PutKVStream(ctx context.Context, opts ...grpcweb.CallOption) (Proxy_PutKVStreamClient, error) {
+	srv, err := c.client.NewClientStream(ctx, "PutKVStream")
+	if err != nil {
+		return nil, err
+	}
+
+	return &proxyPutKVStreamClient{stream: srv}, nil
+}
+
+type Proxy_PutKVStreamClient interface {
+	Send(*KV) error
+	CloseAndRecv() (*OpResult, error)
+	Context() context.Context
+}
+
+type proxyPutKVStreamClient struct {
+	stream grpcweb.ClientStream
+}
+
+func (x *proxyPutKVStreamClient) Send(req *KV) error {
+	return x.stream.SendMsg(req.Marshal())
+}
+
+func (x *proxyPutKVStreamClient) CloseAndRecv() (*OpResult, error) {
+	resp, err := x.stream.CloseAndRecv()
+	if err != nil {
+		return nil, err
+	}
+
+	return new(OpResult).Unmarshal(resp)
+}
+
+func (x *proxyPutKVStreamClient) Context() context.Context {
+	return x.stream.Context()
+}
+
+func (c *proxyClient) GetKVStream(ctx context.Context, in *Key, opts ...grpcweb.CallOption) (Proxy_GetKVStreamClient, error) {
+	srv, err := c.client.NewServerStream(ctx, "GetKVStream", in.Marshal(), opts...)
+	if err != nil {
+		return nil, err
+	}
+
+	return &proxyGetKVStreamClient{
+		stream: srv,
+	}, nil
+}
+
+type Proxy_GetKVStreamClient interface {
+	Recv() (*KV, error)
+	Context() context.Context
+}
+
+type proxyGetKVStreamClient struct {
+	stream grpcweb.ServerStream
+}
+
+func (x *proxyGetKVStreamClient) Recv() (*KV, error) {
+	resp, err := x.stream.RecvMsg()
+	if err != nil {
+		return nil, err
+	}
+
+	return new(KV).Unmarshal(resp)
+}
+
+func (x *proxyGetKVStreamClient) Context() context.Context {
+	return x.stream.Context()
 }

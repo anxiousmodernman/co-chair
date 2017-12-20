@@ -10,3 +10,9 @@ vendor/
 
 # editors, IDE
 .vscode
+
+# hpt deployment scripts
+.hpt
+
+# compiled binary from "go build" with no args
+co-chair

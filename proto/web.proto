@@ -13,6 +13,8 @@ service Proxy {
     rpc State(StateRequest) returns (ProxyState) {}
     rpc Put(Backend) returns (OpResult) {}
     rpc Remove(Backend) returns (OpResult) {}
+    rpc PutKVStream(stream KV) returns (OpResult) {}
+    rpc GetKVStream(Key) returns (stream KV) {}
 }
 
 message Backend {
@@ -20,6 +22,15 @@ message Backend {
     repeated string ips = 2;
     string health_check = 3;
     string health_status = 4;
+}
+
+message Key {
+    bytes prefix = 1;
+}
+
+message KV {
+    bytes key = 1;
+    bytes value = 2;
 }
 
 message ProxyState {
