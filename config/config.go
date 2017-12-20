@@ -75,6 +75,13 @@ type Config struct {
 	BypassAuth0   bool   `toml:"bypass_auth0"`
 }
 
+// Secret is our string that won't print itself.
+type Secret string
+
+func (s Secret) String() string {
+	return "<redacted>"
+}
+
 // ExampleConfig can be written to disk. See the systemd-install command.
 var ExampleConfig = `
 
@@ -87,11 +94,17 @@ var ExampleConfig = `
 	api_key = ""
 	api_port = "1917"
 
-	# WebUICert and WebUIKey are paths to PEM-encoded TLS assets
+	# webui_cert and webui_key are paths to PEM-encoded TLS assets
 	# for our GopherJS-over-websockets UI. This UI is wrapped with
 	# auth0 handlers.
 	webui_cert = ""
 	webui_key = ""
+
+	# webui_domain is our fully-qualified domain name; note that
+	# "localhost" is only suitable for local development. If you
+	# want this co-chair instance to serve clients on the internet,
+	# the domain provided here needs to be in the public DNS.
+	webui_domain = "localhost"
 	webui_port = "2016"
 
 
