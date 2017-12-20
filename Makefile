@@ -23,7 +23,7 @@ generate_cert:
 
 serve:
 	# to use go run, provide all package main files 
-	go run main.go web.go serve
+	go run -race main.go web.go serve 
 
 test:
 	go test ./...
