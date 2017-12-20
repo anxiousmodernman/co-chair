@@ -113,7 +113,7 @@ func main() {
 	}
 
 	webPort := cli.StringFlag{
-		Name:  "webPort",
+		Name:  "webUIPort",
 		Usage: "port number for web ui",
 		Value: "2016",
 	}
@@ -142,13 +142,18 @@ func main() {
 		EnvVar: "COCHAIR_AUTH0_CLIENTID",
 	}
 
+	auth0Domain := cli.StringFlag{
+		Name:   "auth0Domain",
+		Usage:  "Auth0 Domain for this co-chair instance",
+		EnvVar: "COCHAIR_AUTH0_DOMAIN",
+	}
 	auth0Secret := cli.StringFlag{
 		Name:   "auth0Secret",
 		Usage:  "Auth0 Secret",
 		EnvVar: "COCHAIR_AUTH0_SECRET",
 	}
 
-	bypassAuth0 := cli.BoolTFlag{
+	bypassAuth0 := cli.BoolFlag{
 		Name:  "bypassAuth0",
 		Usage: "totally bypass auth0; insecure development mode",
 	}
@@ -159,7 +164,7 @@ func main() {
 			Usage: "run co-chair",
 			Flags: []cli.Flag{dbFlag, apiCert, apiKey, apiPort, webCert,
 				webKey, webPort, proxyCert, proxyKey, proxyPort, auth0ClientID,
-				auth0Secret, bypassAuth0, conf},
+				auth0Domain, auth0Secret, bypassAuth0, conf},
 			Action: func(ctx *cli.Context) error {
 				conf, err := config.FromCLIOpts(ctx)
 				if err != nil {
@@ -231,40 +236,48 @@ func run(conf config.Config) error {
 		}
 
 	}
+
 	p.Handle("/login", negroni.New(
+		setConf(conf),
 		negroni.HandlerFunc(withLog),
 		negroni.Wrap(http.HandlerFunc(loginLink)),
 	)).Methods("GET")
 
 	p.Handle("/auth/{provider}/callback", negroni.New(
+		setConf(conf),
 		negroni.HandlerFunc(withLog),
 		negroni.Wrap(http.HandlerFunc(oauthCallbackHandler)),
 	)).Methods("GET")
 
 	p.Handle("/auth/{provider}", negroni.New(
+		setConf(conf),
 		negroni.HandlerFunc(withLog),
 		negroni.Wrap(http.HandlerFunc(loginHandler)),
 	)).Methods("GET")
 
 	p.Handle("/logout/{provider}", negroni.New(
+		setConf(conf),
 		negroni.HandlerFunc(withLog),
 		negroni.Wrap(http.HandlerFunc(logoutHandler)),
 	)).Methods("GET")
 
 	// All websockets requests are POSTs to a
 	p.Handle("/web.Proxy/{method}", negroni.New(
+		setConf(conf),
 		negroni.HandlerFunc(withLog),
 		negroni.HandlerFunc(authHandler),
 		negroni.Wrap(websocketsProxy(wsproxy)),
 	)).Methods("POST")
 
 	p.Handle("/frontend.js", negroni.New(
+		setConf(conf),
 		negroni.HandlerFunc(withLog),
 		negroni.HandlerFunc(authHandler),
 		negroni.Wrap(http.HandlerFunc(homeHandler)),
 	)).Methods("GET")
 
 	p.Handle("/", negroni.New(
+		setConf(conf),
 		negroni.HandlerFunc(withLog),
 		negroni.HandlerFunc(authHandler),
 		negroni.Wrap(http.HandlerFunc(homeHandler)),

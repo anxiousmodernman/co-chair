@@ -5,30 +5,52 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"html/template"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 
+	"github.com/codegangsta/negroni"
 	"github.com/gorilla/websocket"
+	"gitlab.com/DSASanFrancisco/co-chair/config"
 	"gitlab.com/DSASanFrancisco/co-chair/frontend/bundle"
 	"golang.org/x/oauth2"
 )
+
+// Constants for getting/setting context.Context values.
+const (
+	ctxConfig ctxKey = iota
+)
+
+type ctxKey int
 
 var indexTemplate = `
 <p><a href="/auth/auth0">Log in with auth0</a></p>
 `
 
+// setConf sets our config on a request. We return the type our middleware
+// framework expects. See negroni.New for details.
+func setConf(conf config.Config) negroni.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
+		ctx := r.Context()
+		ctx = context.WithValue(ctx, ctxConfig, conf)
+		r = r.WithContext(ctx)
+		next(w, r)
+	}
+}
+
 func loginHandler(w http.ResponseWriter, r *http.Request) {
-	domain := "dsasf.auth0.com"
+	conf := r.Context().Value(ctxConfig).(config.Config)
+	domain := conf.Auth0Domain
 	aud := ""
 
-	conf := &oauth2.Config{
-		ClientID:     os.Getenv("COCHAIR_AUTH0_CLIENTID"),
-		ClientSecret: os.Getenv("COCHAIR_AUTH0_SECRET"),
-		RedirectURL:  "https://localhost:2016/auth/auth0/callback",
-		Scopes:       []string{"openid", "profile"},
+	oauthConf := &oauth2.Config{
+		ClientID:     conf.Auth0ClientID,
+		ClientSecret: conf.Auth0Secret,
+		RedirectURL: fmt.Sprintf(
+			"https://localhost:%s/auth/auth0/callback", conf.WebUIPort),
+		Scopes: []string{"openid", "profile"},
 		Endpoint: oauth2.Endpoint{
 			AuthURL:  "https://" + domain + "/authorize",
 			TokenURL: "https://" + domain + "/oauth/token",
@@ -58,7 +80,7 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 
 	audience := oauth2.SetAuthURLParam("audience", aud)
 	// add "code" here?
-	url := conf.AuthCodeURL(state, audience)
+	url := oauthConf.AuthCodeURL(state, audience)
 	logger.Debug("auth code url: ", url)
 
 	http.Redirect(w, r, url, http.StatusTemporaryRedirect)
@@ -71,7 +93,8 @@ func loginLink(w http.ResponseWriter, r *http.Request) {
 
 func logoutHandler(w http.ResponseWriter, r *http.Request) {
 
-	domain := os.Getenv("COCHAIR_AUTH0_DOMAIN")
+	conf := r.Context().Value(ctxConfig).(config.Config)
+	domain := conf.Auth0Domain
 
 	var u *url.URL
 	u, err := url.Parse("https://" + domain)
@@ -82,21 +105,23 @@ func logoutHandler(w http.ResponseWriter, r *http.Request) {
 
 	u.Path += "/auth/auth0/logout"
 	parameters := url.Values{}
-	parameters.Add("returnTo", "https://localhost:2016")
-	parameters.Add("client_id", os.Getenv("COCHAIR_AUTH0_CLIENTID"))
+	parameters.Add("returnTo", fmt.Sprintf("https://localhost:%s", conf.WebUIPort))
+	parameters.Add("client_id", conf.Auth0ClientID)
 	u.RawQuery = parameters.Encode()
 
 	http.Redirect(w, r, u.String(), http.StatusTemporaryRedirect)
 }
 
 func oauthCallbackHandler(w http.ResponseWriter, r *http.Request) {
-	domain := "dsasf.auth0.com"
+	conf := r.Context().Value(ctxConfig).(config.Config)
+	domain := conf.Auth0Domain
 
-	conf := &oauth2.Config{
-		ClientID:     os.Getenv("COCHAIR_AUTH0_CLIENTID"),
-		ClientSecret: os.Getenv("COCHAIR_AUTH0_SECRET"),
-		RedirectURL:  "https://localhost:2016/auth/auth0/callback",
-		Scopes:       []string{"openid", "profile"},
+	oauthConf := &oauth2.Config{
+		ClientID:     conf.Auth0ClientID,
+		ClientSecret: conf.Auth0Secret,
+		RedirectURL: fmt.Sprintf(
+			"https://localhost:%s/auth/auth0/callback", conf.WebUIPort),
+		Scopes: []string{"openid", "profile"},
 		Endpoint: oauth2.Endpoint{
 			AuthURL:  "https://" + domain + "/authorize",
 			TokenURL: "https://" + domain + "/oauth/token",
@@ -132,7 +157,7 @@ func oauthCallbackHandler(w http.ResponseWriter, r *http.Request) {
 
 	// package oauth2 docs:
 	// The code will be in the *http.Request.FormValue("code").
-	token, err := conf.Exchange(context.TODO(), code)
+	token, err := oauthConf.Exchange(context.TODO(), code)
 	if err != nil {
 		logger.Error("oauth exchange failure: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -140,7 +165,7 @@ func oauthCallbackHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Getting now the userInfo
-	client := conf.Client(context.TODO(), token)
+	client := oauthConf.Client(context.TODO(), token)
 	resp, err := client.Get("https://" + domain + "/userinfo")
 	if err != nil {
 		logger.Errorf("error calling userinfo endpoint: %v", err)
