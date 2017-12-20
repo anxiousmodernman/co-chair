@@ -106,6 +106,13 @@ func main() {
 		Value: "./cert.pem",
 	}
 
+	webDomain := cli.StringFlag{
+		Name:   "webUIDomain",
+		Usage:  "for web ui: our fully-qualified domain name",
+		Value:  "localhost",
+		EnvVar: "COCHAIR_WEBUI_DOMAIN",
+	}
+
 	webKey := cli.StringFlag{
 		Name:  "webUIKey",
 		Usage: "for web ui: path to pem encoded tls private key",
@@ -163,8 +170,8 @@ func main() {
 			Name:  "serve",
 			Usage: "run co-chair",
 			Flags: []cli.Flag{dbFlag, apiCert, apiKey, apiPort, webCert,
-				webKey, webPort, proxyCert, proxyKey, proxyPort, auth0ClientID,
-				auth0Domain, auth0Secret, bypassAuth0, conf},
+				webDomain, webKey, webPort, proxyCert, proxyKey, proxyPort,
+				auth0ClientID, auth0Domain, auth0Secret, bypassAuth0, conf},
 			Action: func(ctx *cli.Context) error {
 				conf, err := config.FromCLIOpts(ctx)
 				if err != nil {

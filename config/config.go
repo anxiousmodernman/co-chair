@@ -26,6 +26,7 @@ func FromCLIOpts(ctx *cli.Context) (Config, error) {
 	c.APIKey = ctx.String("apiKey")
 	c.APIPort = ctx.String("apiPort")
 	c.WebUICert = ctx.String("webUICert")
+	c.WebUIDomain = ctx.String("webUIDomain")
 	c.WebUIKey = ctx.String("webUIKey")
 	c.WebUIPort = ctx.String("webUIPort")
 	c.ProxyCert = ctx.String("proxyCert")
@@ -55,9 +56,10 @@ type Config struct {
 	// WebUICert and WebUIKey are paths to PEM-encoded TLS assets
 	// for our GopherJS-over-websockets UI. This UI is wrapped with
 	// auth0 handlers.
-	WebUICert string `toml:"webui_cert"`
-	WebUIKey  string `toml:"webui_key"`
-	WebUIPort string `toml:"webui_port"`
+	WebUICert   string `toml:"webui_cert"`
+	WebUIKey    string `toml:"webui_key"`
+	WebUIDomain string `toml:"webui_domain"`
+	WebUIPort   string `toml:"webui_port"`
 
 	// ProxyCert and  are paths to PEM-encoded TLS assets
 	// for our GopherJS-over-websockets UI. This UI is wrapped with
