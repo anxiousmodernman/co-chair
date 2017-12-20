@@ -33,6 +33,7 @@ func FromCLIOpts(ctx *cli.Context) (Config, error) {
 	c.ProxyPort = ctx.String("proxyPort")
 	c.Auth0ClientID = ctx.String("auth0ClientID")
 	c.Auth0Secret = ctx.String("auth0Secret")
+	c.Auth0Domain = ctx.String("auth0Domain")
 	c.BypassAuth0 = ctx.BoolT("bypassAuth0")
 	return c, nil
 }
@@ -68,6 +69,7 @@ type Config struct {
 	// Auth0 config values
 	Auth0ClientID string `toml:"auth0_client_id"`
 	Auth0Secret   string `toml:"auth0_secret"`
+	Auth0Domain   string `toml:"auth0_domain"`
 	BypassAuth0   bool   `toml:"bypass_auth0"`
 }
 
@@ -87,7 +89,8 @@ var ExampleConfig = `
 	# for our GopherJS-over-websockets UI. This UI is wrapped with
 	# auth0 handlers.
 	webui_cert = ""
-	webui_key = "2016"
+	webui_key = ""
+	webui_port = "2016"
 
 
 	# ProxyCert and  are paths to PEM-encoded TLS assets
@@ -100,6 +103,7 @@ var ExampleConfig = `
 	# Auth0 config values
 	auth0_client_id = ""
 	auth0_secret = ""
+	auth0_domain = ""
 	bypass_auth0 = false
 
 `
