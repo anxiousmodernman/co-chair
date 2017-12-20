@@ -71,6 +71,11 @@ func main() {
 	app := cli.NewApp()
 	app.Version = Version
 
+	conf := cli.StringFlag{
+		Name:  "conf",
+		Usage: "path to config file",
+	}
+
 	dbFlag := cli.StringFlag{
 		Name:  "db",
 		Usage: "path to db",
@@ -129,20 +134,34 @@ func main() {
 		Name:  "bypassAuth0",
 		Usage: "totally bypass auth0; insecure development mode",
 	}
+
 	app.Commands = []cli.Command{
 		cli.Command{
-			Name: "serve",
+			Name:  "serve",
+			Usage: "run co-chair",
 			Flags: []cli.Flag{dbFlag, apiCert, apiKey, webCert, webKey,
-				proxyCert, proxyKey, auth0ClientID, auth0Secret, bypassAuth0},
+				proxyCert, proxyKey, auth0ClientID, auth0Secret, bypassAuth0, conf},
 			Action: func(ctx *cli.Context) error {
 				var conf config.Config
 				conf = config.FromCLIOpts(ctx)
 				return run(conf)
 			},
 		},
+		cli.Command{
+			Name:  "systemd-install",
+			Usage: "installs a unit file and config directory",
+			Flags: []cli.Flag{conf},
+			Action: func(ctx *cli.Context) error {
+				var conf config.Config
+				conf = config.FromCLIOpts(ctx)
+				return config.SystemDInstall(conf)
+			},
+		},
 	}
 
-	app.Run(os.Args)
+	if err := app.Run(os.Args); err != nil {
+		log.Fatal(err)
+	}
 }
 
 func run(conf config.Config) error {
