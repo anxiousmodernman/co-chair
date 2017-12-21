@@ -14,6 +14,7 @@ import (
 	"github.com/gopherjs/vecty/event"
 	"github.com/gopherjs/vecty/prop"
 	"gitlab.com/DSASanFrancisco/co-chair/frontend/api"
+	"gitlab.com/DSASanFrancisco/co-chair/frontend/components"
 	"gitlab.com/DSASanFrancisco/co-chair/frontend/store"
 	"gitlab.com/DSASanFrancisco/co-chair/proto/client"
 )
@@ -55,13 +56,15 @@ func setup() {
 	state = store.NewStore()
 	p := &Page{}
 
-	w := js.Global.Get("window")
-	w = w.Call("addEventListener", "resize", func(e vecty.Event) {
-		// TODO: use debounce func here?
-		dims.Width = js.Global.Get("window").Get("innerWidth").Int64()
-		dims.Height = js.Global.Get("window").Get("innerHeight").Int64()
-		vecty.Rerender(p)
-	})
+	// TODO get rid of the event listener here
+	// w := js.Global.Get("window")
+	// w = w.Call("addEventListener", "resize", func(e vecty.Event) {
+	// 	// TODO: use debounce func here?
+	// 	dims.Width = js.Global.Get("window").Get("innerWidth").Int64()
+	// 	dims.Height = js.Global.Get("window").Get("innerHeight").Int64()
+	// 	// vecty.Rerender(p)
+	// })
+	components.RerenderOnResize(p)
 
 	serverAddr := strings.TrimSuffix(document.BaseURI(), "/")
 	apiClient = client.NewProxyClient(serverAddr)
@@ -135,7 +138,7 @@ func (bl *BackendList) Render() vecty.ComponentOrHTML {
 	// Add another component for the "+" sign; A UI component to add new proxies.
 	if formActive {
 		// show awesome form
-		items = append(items, &AddProxyForm{})
+		items = append(items, &components.EditProxyForm{})
 	} else {
 		// show proxy list
 		if backends, ok := state.Get("proxy.list").([]*client.Backend); ok {
