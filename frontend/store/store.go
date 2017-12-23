@@ -6,7 +6,14 @@ import (
 	"sync"
 )
 
+var S *Store
+
+func init() {
+	S = NewStore()
+}
+
 // Store is a state container for our frontend app.
+// TODO remove mutex?
 type Store struct {
 	mtx         *sync.RWMutex
 	data        map[string]interface{}
