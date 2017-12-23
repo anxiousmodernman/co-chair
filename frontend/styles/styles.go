@@ -11,9 +11,12 @@ func init() {
 }
 
 func NavBar() *CSS {
+
 	common := NewCSS(
 		"list-style", "none",
 		"background-color", "#444",
+		// just use grid for everything, okay i get it now
+		"display", "grid",
 	)
 	mobile := NewCSS(
 		"margin", "auto",
@@ -22,8 +25,11 @@ func NavBar() *CSS {
 	)
 	desktop := NewCSS(
 		"text-align", "center",
-		"padding", "0",
+		"padding-left", "50px",
+		"padding-right", "50px",
 		"margin", "0",
+		// nav nav nav -----  empty space  ----- logout
+		"grid-template-columns", "120px 120px 120px auto 100px",
 	)
 
 	return mq.Query(common, mobile, desktop)
@@ -39,7 +45,7 @@ func NavItem() *CSS {
 		"height", "50px",
 	)
 	desktop := NewCSS(
-		"width", "120px",
+		"width", "100%",
 		// "float", "left",
 		"font-size", "1.2em",
 		"line-height", "40px",

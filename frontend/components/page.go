@@ -36,6 +36,8 @@ func (n *NavComponent) Render() vecty.ComponentOrHTML {
 			&NavItem{Name: "proxy"},
 			&NavItem{Name: "containers"},
 			&NavItem{Name: "streams"},
+			elem.Div( /* auto grid filler */ ),
+			&NavItem{Name: "logout"},
 			styles.NavBar().Yield(),
 		),
 	)
