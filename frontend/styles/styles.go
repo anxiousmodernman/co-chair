@@ -78,19 +78,24 @@ func ProxyForm() *CSS {
 
 	common := NewCSS(
 		"display", "grid",
-		"grid-template-rows", "25% 25% 25% 25%",
 		"background-color", "#444",
 		"border-radius", "5px",
 		"padding", "15px",
+		"margin-left", "auto",
+		"margin-right", "auto",
+		"margin-top", "20px",
 	)
 
 	mobile := NewCSS()
-	desktop := NewCSS()
+	desktop := NewCSS(
+		"width", "800px",
+		"grid-template-columns", "50% 50%",
+	)
 	c := mq.Query(common, mobile, desktop)
 	return c
 }
 
-func BackendList() *CSS {
+func ProxyList() *CSS {
 	common := NewCSS(
 		"grid-gap", "10px",
 		"display", "grid",
@@ -102,6 +107,9 @@ func BackendList() *CSS {
 	)
 	desktop := NewCSS(
 		"width", "800px",
+		"margin-left", "auto",
+		"margin-right", "auto",
+		"margin-top", "20px",
 		"grid-template-columns", "repeat(4, 200px)",
 	)
 	return mq.Query(common, mobile, desktop)

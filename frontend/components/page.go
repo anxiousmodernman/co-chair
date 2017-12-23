@@ -19,6 +19,7 @@ func (p *Page) Render() vecty.ComponentOrHTML {
 		elem.Header(
 			&NavComponent{},
 		),
+		&EditProxyForm{},
 		&BackendList{},
 	)
 }

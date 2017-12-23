@@ -44,3 +44,16 @@ func PutBackend(s *store.Store, c client.ProxyClient, b *client.Backend) {
 		s.Put("proxy.list", resp.Backends)
 	}()
 }
+
+func DeleteProxy(s *store.Store, c client.ProxyClient, domain string) {
+	b := client.Backend{}
+	b.Domain = domain
+
+	go func() {
+		_, err := c.Remove(context.TODO(), &b)
+		if err != nil {
+			log.Println("delete error:", err)
+		}
+		ProxyState(s, c)
+	}()
+}
