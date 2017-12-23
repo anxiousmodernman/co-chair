@@ -102,8 +102,20 @@ func logoutHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		panic("boom")
 	}
+	session, err := Store.Get(r, "auth-session")
+	if err != nil {
+		w.WriteHeader(500)
+		logger.Debug("tried to remove session but it's not there")
+		return
+	}
 
-	u.Path += "/auth/auth0/logout"
+	// This is how you invalidate sessions. See docs for Save
+	// http://www.gorillatoolkit.org/pkg/sessions
+	session.Options.MaxAge = -1
+	Store.Save(r, w, session)
+
+	u.Path += "/v2/logout"
+
 	parameters := url.Values{}
 	parameters.Add("returnTo", fmt.Sprintf("https://%s:%s",
 		conf.WebUIDomain, conf.WebUIPort))
@@ -130,6 +142,8 @@ func oauthCallbackHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	// Validate state before calling Exchange
 	state := r.URL.Query().Get("state")
+	// TODO do we remove state here, in this handler?
+	// e.g. after it's done its work here
 	session, err := Store.Get(r, "state")
 	if err != nil {
 		logger.Errorf("could not get session state: %v", err)
