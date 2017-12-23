@@ -16,8 +16,6 @@ import (
 )
 
 var (
-	apiClient client.ProxyClient
-	// TODO get rid of this
 	document = dom.GetWindow().Document().(dom.HTMLDocument)
 )
 
@@ -48,8 +46,8 @@ func setup() {
 	})
 
 	serverAddr := strings.TrimSuffix(document.BaseURI(), "/")
-	apiClient = client.NewProxyClient(serverAddr)
-	InitStore(store.S, apiClient)
+	api.Client = client.NewProxyClient(serverAddr)
+	InitStore(store.S, api.Client)
 
 	vecty.RenderBody(p)
 }

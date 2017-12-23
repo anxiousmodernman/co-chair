@@ -4,6 +4,7 @@ import (
 	"github.com/gopherjs/vecty"
 	"github.com/gopherjs/vecty/elem"
 	"github.com/gopherjs/vecty/event"
+	"github.com/gopherjs/vecty/prop"
 	"gitlab.com/DSASanFrancisco/co-chair/frontend/styles"
 )
 
@@ -19,6 +20,7 @@ func (p *Page) Render() vecty.ComponentOrHTML {
 		elem.Header(
 			&NavComponent{},
 		),
+		&EditProxyForm{},
 		&BackendList{},
 	)
 }
@@ -37,7 +39,7 @@ func (n *NavComponent) Render() vecty.ComponentOrHTML {
 			&NavItem{Name: "containers"},
 			&NavItem{Name: "streams"},
 			elem.Div( /* auto grid filler */ ),
-			&NavItem{Name: "logout"},
+			&NavItem{Name: "logout", Link: "/logout/auth0"},
 			styles.NavBar().Yield(),
 		),
 	)
@@ -48,6 +50,7 @@ type NavItem struct {
 	vecty.Core
 	hovered bool
 	Name    string
+	Link    string
 }
 
 // Render implements vecty.ComponentOrHTML
@@ -64,6 +67,7 @@ func (ni *NavItem) Render() vecty.ComponentOrHTML {
 
 	return elem.ListItem(
 		elem.Anchor(
+			vecty.Markup(prop.Href(ni.Link)),
 			styles.NavAnchor(ni.hovered).Yield(),
 			// vecty.Markup(vecty.Attribute("href", "#")), // TODO
 			vecty.Text(ni.Name),

@@ -4,6 +4,7 @@ import (
 	"github.com/gopherjs/vecty"
 	"github.com/gopherjs/vecty/elem"
 	"github.com/gopherjs/vecty/event"
+	"gitlab.com/DSASanFrancisco/co-chair/frontend/api"
 	"gitlab.com/DSASanFrancisco/co-chair/frontend/store"
 	"gitlab.com/DSASanFrancisco/co-chair/frontend/styles"
 	"gitlab.com/DSASanFrancisco/co-chair/proto/client"
@@ -22,7 +23,6 @@ type BackendList struct {
 func (bl *BackendList) Mount() {
 	rerender := func() { vecty.Rerender(bl) }
 	store.S.Subscribe("proxy.list", rerender)
-	store.S.Subscribe("proxy.form.active", rerender)
 }
 
 // Unmount ...
@@ -35,31 +35,18 @@ func (bl *BackendList) Unmount() {
 // Render implements vecty.ComponentOrHTML
 func (bl *BackendList) Render() vecty.ComponentOrHTML {
 
-	// items will become a list of backends blocked out in a grid. Backends is
-	// a heterogeneous list of styles and Divs
 	var items []vecty.MarkupOrChild
-
-	// Show either, "+" or new form
-	formActive := store.S.Get("proxy.form.active").(bool)
-	// Add another component for the "+" sign; A UI component to add new proxies.
-	if formActive {
-		// show awesome form
-		items = append(items, &EditProxyForm{})
-	} else {
-		// show proxy list
-		if backends, ok := store.S.Get("proxy.list").([]*client.Backend); ok {
-			for _, b := range backends {
-				bi := BackendItem{Domain: b.Domain}
-				items = append(items, &bi)
+	if backends, ok := store.S.Get("proxy.list").([]*client.Backend); ok {
+		for _, b := range backends {
+			if len(b.Ips) == 0 {
+				continue
 			}
-			items = append(items, &BackendItemPlusSign{i: len(items) + 1})
+			bi := BackendItem{Domain: b.Domain, IP: b.Ips[0]} // only single ip for now
+			items = append(items, &bi)
 		}
 	}
-	items = append(items, styles.BackendList().Yield())
-
-	return elem.Div(
-		items...,
-	)
+	items = append(items, styles.ProxyList().Yield())
+	return elem.Div(items...)
 }
 
 // BackendItem is one of our blocks on the grid of live proxies.
@@ -70,16 +57,30 @@ type BackendItem struct {
 }
 
 // Render implements vecty.ComponentOrHTML
-func (bl *BackendItem) Render() vecty.ComponentOrHTML {
-	var box = styles.NewCSS(
-		"list-style-type", "none",
+func (bi *BackendItem) Render() vecty.ComponentOrHTML {
+	box := styles.NewCSS(
 		"background-color", "#444",
 		"color", "#fff",
 		"border-radius", "5px",
 		"padding", "20px",
 		"font-size", "100%",
+		"display", "grid",
 	)
-	return elem.Div(box.Yield(), vecty.Text(bl.Domain), vecty.Text(bl.IP))
+
+	ip := styles.NewCSS("font-size", "75%")
+	click := vecty.Markup(event.Click(bi.deleteProxy))
+
+	return elem.Div(box.Yield(), elem.Div(vecty.Text(bi.Domain)),
+		elem.Div(ip.Yield(), vecty.Text(bi.IP)),
+		elem.Div(),
+		elem.Button(vecty.Text("delete"), click),
+	)
+}
+
+func (bi *BackendItem) deleteProxy(e *vecty.Event) {
+	d := bi.Domain
+	api.DeleteProxy(store.S, api.Client, d)
+
 }
 
 // BackendItemPlusSign ...
