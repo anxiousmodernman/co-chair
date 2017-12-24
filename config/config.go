@@ -24,6 +24,7 @@ func FromCLIOpts(ctx *cli.Context) (Config, error) {
 	c.DBPath = ctx.String("db")
 	c.APICert = ctx.String("apiCert")
 	c.APIKey = ctx.String("apiKey")
+	c.APIClientValidation = ctx.BoolT("apiClientValidation")
 	c.APIPort = ctx.String("apiPort")
 	c.WebUICert = ctx.String("webUICert")
 	c.WebUIDomain = ctx.String("webUIDomain")
@@ -50,9 +51,10 @@ type Config struct {
 
 	// APICert and APIKey are paths to PEM-encoded TLS assets
 	// for our pure gRPC api
-	APICert string `toml:"api_cert"`
-	APIKey  string `toml:"api_key"`
-	APIPort string `toml:"api_port"`
+	APICert             string `toml:"api_cert"`
+	APIKey              string `toml:"api_key"`
+	APIClientValidation bool   `toml:"api_client_validation"`
+	APIPort             string `toml:"api_port"`
 
 	// WebUICert and WebUIKey are paths to PEM-encoded TLS assets
 	// for our GopherJS-over-websockets UI. This UI is wrapped with

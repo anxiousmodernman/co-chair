@@ -8,6 +8,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/Rudd-O/curvetls"
+
 	"github.com/asdine/storm"
 	"gitlab.com/DSASanFrancisco/co-chair/proto/server"
 )
@@ -23,6 +25,26 @@ func NewProxy(path string) (*Proxy, error) {
 	if err != nil {
 		return nil, err
 	}
+	// find our KeyPair for protecting external grpc conns, and
+	// create a keypair if it doesn't exist.
+	var kp KeyPair
+	err = db.One("Name", "server", &kp)
+	if err != nil {
+		if err == storm.ErrNotFound {
+			priv, pub, err := curvetls.GenKeyPair()
+			if err != nil {
+				return nil, err
+			}
+			newKP := KeyPair{Name: "server", Pub: pub.String(), Priv: priv.String()}
+			err = db.Save(&newKP)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			return nil, err
+		}
+	}
+
 	return &Proxy{db}, nil
 }
 
@@ -175,7 +197,27 @@ func (bd BackendData) AsBackend() *server.Backend {
 	return &b
 }
 
-func (bd BackendData) PutIP(ip string) error {
+type KeyPair struct {
+	Name string `storm:"unique,id"`
+	// Pub and Priv are base64 strings that represent curvetls keys
+	// for servers or clients.
+	Pub  string
+	Priv string
+}
 
-	return nil
+func RetrieveServerKeys(db *storm.DB) (curvetls.Pubkey, curvetls.Privkey, error) {
+	var kp KeyPair
+	err := db.One("Name", "server", &kp)
+	if err != nil {
+		return curvetls.Pubkey{}, curvetls.Privkey{}, err
+	}
+	priv, err := curvetls.PrivkeyFromString(kp.Priv)
+	if err != nil {
+		return curvetls.Pubkey{}, curvetls.Privkey{}, err
+	}
+	pub, err := curvetls.PubkeyFromString(kp.Pub)
+	if err != nil {
+		return curvetls.Pubkey{}, curvetls.Privkey{}, err
+	}
+	return pub, priv, nil
 }

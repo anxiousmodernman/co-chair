@@ -66,4 +66,7 @@ required = [
   branch = "master"
   name = "github.com/anxiousmodernman/goth"
 
-
+[[constraint]]
+  name = "github.com/Rudd-O/curvetls"
+  source = "github.com/anxiousmodernman/curvetls"
+  revision = "fd97be7e75a6424043a9c07ade30938656132f52"

@@ -2,10 +2,22 @@
 
 
 [[projects]]
+  name = "github.com/BurntSushi/toml"
+  packages = ["."]
+  revision = "b26d9c308763d68093482582cea63d69be07a0f0"
+  version = "v0.3.0"
+
+[[projects]]
   name = "github.com/PuerkitoBio/goquery"
   packages = ["."]
   revision = "e1271ee34c6a305e38566ecd27ae374944907ee9"
   version = "v1.1.0"
+
+[[projects]]
+  name = "github.com/Rudd-O/curvetls"
+  packages = ["."]
+  revision = "fd97be7e75a6424043a9c07ade30938656132f52"
+  source = "github.com/anxiousmodernman/curvetls"
 
 [[projects]]
   branch = "master"
@@ -130,13 +142,13 @@
 [[projects]]
   branch = "master"
   name = "github.com/vulcand/oxy"
-  packages = ["forward","testutils","utils"]
+  packages = ["forward","testutils","trace","utils"]
   revision = "ad9ad6c09ee1f5d719224170baf8114e0810998a"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/crypto"
-  packages = ["ssh/terminal"]
+  packages = ["curve25519","nacl/box","nacl/secretbox","poly1305","salsa20/salsa","ssh/terminal"]
   revision = "9f005a07e0d31d45e6656d241bb5c0f2efd4bc94"
 
 [[projects]]
@@ -190,6 +202,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "2fb3df6df2329b1253efac5829edd03d0939fa7afe6815978d9d6e76b6cb4362"
+  inputs-digest = "2d7dff7d7ff0075917b1418ad096f93df5c43b3a537b20f3c79f8aeaf37ddbe8"
   solver-name = "gps-cdcl"
   solver-version = 1
