@@ -10,8 +10,9 @@ type StormKeystore struct {
 }
 
 func (sk *StormKeystore) Allowed(pubkey curvetls.Pubkey) bool {
-	var pk curvetls.Pubkey
-	if err := sk.DB.One("Pubkey", &pubkey, &pk); err == nil {
+	var kp KeyPair
+	// pass the value we are querying for as the second param
+	if err := sk.DB.One("Pub", pubkey.String(), &kp); err == nil {
 		return true
 	}
 	return false

@@ -25,5 +25,8 @@ serve:
 	# to use go run, provide all package main files 
 	go run -race main.go web.go serve 
 
+serve-no-auth:
+	go run -race main.go web.go serve --bypassAuth0=true
+
 test:
 	go test ./...

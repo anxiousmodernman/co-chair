@@ -18,6 +18,7 @@ import (
 
 	"github.com/Rudd-O/curvetls"
 	"github.com/anxiousmodernman/goth/gothic"
+	"github.com/asdine/storm"
 	"github.com/codegangsta/negroni"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/sessions"
@@ -28,6 +29,7 @@ import (
 
 	"gitlab.com/DSASanFrancisco/co-chair/backend"
 	"gitlab.com/DSASanFrancisco/co-chair/config"
+	"gitlab.com/DSASanFrancisco/co-chair/grpcclient"
 	"gitlab.com/DSASanFrancisco/co-chair/proto/server"
 )
 
@@ -42,7 +44,7 @@ var (
 var logger *logrus.Logger
 
 func init() {
-
+	// TODO make this more secrety
 	Store = sessions.NewCookieStore([]byte("something-very-secret"))
 	logger = logrus.StandardLogger()
 	logrus.SetLevel(logrus.DebugLevel)
@@ -72,14 +74,17 @@ func main() {
 	app := cli.NewApp()
 	app.Version = Version
 
-	conf := cli.StringFlag{
-		Name:  "conf",
-		Usage: "path to config file",
-	}
+	// shared flags
+	var (
+		conf = cli.StringFlag{
+			Name:  "conf",
+			Usage: "path to config file",
+		}
+	)
 
 	dbFlag := cli.StringFlag{
 		Name:  "db",
-		Usage: "path to db",
+		Usage: "path to boltdb file",
 		Value: "co-chair.db",
 	}
 
@@ -176,7 +181,46 @@ func main() {
 		Usage: "totally bypass auth0; insecure development mode",
 	}
 
+	// client-only flags
+	var (
+		upstreamDomain = cli.StringFlag{
+			Name:  "domain",
+			Usage: "an upstream domain; pair with --\"ips\"",
+		}
+
+		upstreamIPs = cli.StringSliceFlag{
+			Name:  "ips",
+			Usage: "comma-separated list of the real host:port of an upstream; pair with --\"domain\"",
+		}
+	)
 	app.Commands = []cli.Command{
+		cli.Command{
+			Name:  "gen-client-keys",
+			Usage: "generate a (curvetls) client keypair and add public key to the keystore; co-chair cannot be running",
+			Flags: []cli.Flag{conf, dbFlag},
+			Action: func(ctx *cli.Context) error {
+				// name is the identifier of our keypair
+				name := ctx.Args().First()
+				return genClientKeypair(name, ctx.String("db"))
+			},
+		},
+		cli.Command{
+			Name:  "put",
+			Usage: "add an upstream to the proxy",
+			Flags: []cli.Flag{conf, upstreamDomain, upstreamIPs},
+			Action: func(ctx *cli.Context) error {
+				clientConf, err := grpcclient.NewClientConfig(ctx.String("conf"))
+				if err != nil {
+					return err
+				}
+				c, err := grpcclient.NewCoChairClient(clientConf)
+				if err != nil {
+					return err
+				}
+				return c.Put(ctx.String("domain"), ctx.StringSlice("ips"))
+			},
+		},
+
 		cli.Command{
 			Name:  "serve",
 			Usage: "run co-chair",
@@ -190,6 +234,22 @@ func main() {
 					return err
 				}
 				return run(conf)
+			},
+		},
+		cli.Command{
+			Name:  "state",
+			Usage: "report the proxy's upstream configuration",
+			Flags: []cli.Flag{conf, upstreamDomain},
+			Action: func(ctx *cli.Context) error {
+				clientConf, err := grpcclient.NewClientConfig(ctx.String("conf"))
+				if err != nil {
+					return err
+				}
+				c, err := grpcclient.NewCoChairClient(clientConf)
+				if err != nil {
+					return err
+				}
+				return c.State(ctx.String("domain"))
 			},
 		},
 		cli.Command{
@@ -382,4 +442,37 @@ func run(conf config.Config) error {
 		}
 	}
 
+}
+
+func genClientKeypair(name, dbPath string) error {
+	// NOTE this function directly accesses the database. It's a command line
+	// feature, and assumes local access to the database file.
+
+	db, err := storm.Open(dbPath)
+	if err != nil {
+		return err
+	}
+
+	serverPub, _, err := backend.RetrieveServerKeys(db)
+	if err != nil {
+		return err
+	}
+
+	priv, pub, err := curvetls.GenKeyPair()
+	if err != nil {
+		return err
+	}
+	clientKP := backend.KeyPair{Name: name, Pub: pub.String()}
+	if err := db.Save(&clientKP); err != nil {
+		return err
+	}
+
+	msg := `The following are new curveTLS public and private keys.\n`
+	fmt.Println(msg)
+
+	fmt.Println("client public key (new):\t", pub)
+	fmt.Println("client private key (new):\t", priv)
+	fmt.Println("server public key:\t", serverPub)
+
+	return nil
 }
