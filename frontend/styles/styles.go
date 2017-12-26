@@ -110,7 +110,7 @@ func ProxyList() *CSS {
 		"margin-left", "auto",
 		"margin-right", "auto",
 		"margin-top", "20px",
-		"grid-template-columns", "repeat(4, 200px)",
+		"grid-template-columns", "repeat(4, 25%)",
 	)
 	return mq.Query(common, mobile, desktop)
 }
