@@ -22,6 +22,7 @@ message Backend {
     repeated string ips = 2;
     string health_check = 3;
     string health_status = 4;
+    string protocol = 5;
 }
 
 message Key {

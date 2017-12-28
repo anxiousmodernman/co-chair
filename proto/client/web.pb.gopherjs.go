@@ -36,6 +36,7 @@ type Backend struct {
 	Ips          []string
 	HealthCheck  string
 	HealthStatus string
+	Protocol     string
 }
 
 // GetDomain gets the Domain of the Backend.
@@ -70,6 +71,14 @@ func (m *Backend) GetHealthStatus() (x string) {
 	return m.HealthStatus
 }
 
+// GetProtocol gets the Protocol of the Backend.
+func (m *Backend) GetProtocol() (x string) {
+	if m == nil {
+		return x
+	}
+	return m.Protocol
+}
+
 // MarshalToWriter marshals Backend to the provided writer.
 func (m *Backend) MarshalToWriter(writer jspb.Writer) {
 	if m == nil {
@@ -90,6 +99,10 @@ func (m *Backend) MarshalToWriter(writer jspb.Writer) {
 
 	if len(m.HealthStatus) > 0 {
 		writer.WriteString(4, m.HealthStatus)
+	}
+
+	if len(m.Protocol) > 0 {
+		writer.WriteString(5, m.Protocol)
 	}
 
 	return
@@ -118,6 +131,8 @@ func (m *Backend) UnmarshalFromReader(reader jspb.Reader) *Backend {
 			m.HealthCheck = reader.ReadString()
 		case 4:
 			m.HealthStatus = reader.ReadString()
+		case 5:
+			m.Protocol = reader.ReadString()
 		default:
 			reader.SkipField()
 		}

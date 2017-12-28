@@ -1,6 +1,8 @@
 package components
 
 import (
+	"log"
+
 	"github.com/gopherjs/vecty"
 	"github.com/gopherjs/vecty/elem"
 	"github.com/gopherjs/vecty/event"
@@ -14,14 +16,16 @@ import (
 // EditProxyForm ...
 type EditProxyForm struct {
 	vecty.Core
-	Domain, IP string
+	Domain, IP, Protocol string
 }
 
 // Render ...
 func (e *EditProxyForm) Render() vecty.ComponentOrHTML {
 
+	// Get values from our fields
 	cb1 := func(val string) { e.Domain = val }
 	cb2 := func(val string) { e.IP = val }
+	cb3 := func(val string) { e.Protocol = val }
 
 	buttonStyle := styles.NewCSS("margin", "5px")
 	click := event.Click(e.addProxy)
@@ -30,6 +34,7 @@ func (e *EditProxyForm) Render() vecty.ComponentOrHTML {
 		&LabeledInput{Label: "domain", cb: cb1},
 		&LabeledInput{Label: "ip:port", cb: cb2},
 		&LabeledInput{Label: "health check"},
+		&LabeledInput{Label: "protocol prefix", cb: cb3},
 		elem.Button(
 			buttonStyle.Yield(),
 			vecty.Text("Add Proxy"), vecty.Markup(click)),
@@ -40,6 +45,8 @@ func (e *EditProxyForm) addProxy(ev *vecty.Event) {
 	b := client.Backend{}
 	b.Domain = e.Domain
 	b.Ips = []string{e.IP}
+	b.Protocol = e.Protocol
+	log.Println("put backend", b)
 	api.PutBackend(store.S, api.Client, &b)
 }
 

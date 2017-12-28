@@ -89,7 +89,9 @@ func (pf *ProxyForwarder) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				// Also note: merely setting fields on the request is all the oxy
 				// library needs to forward the request.
 
-				r.URL = testutils.ParseURI(protocolFmt(r) + upstreams.Backends[0].Ips[0])
+				//r.URL = testutils.ParseURI(protocolFmt(r) + upstreams.Backends[0].Ips[0])
+				be := upstreams.Backends[0]
+				r.URL = testutils.ParseURI(be.Protocol + be.Ips[0])
 				pf.logger.Infof("proxying %s -> %s", dom, r.Host)
 
 				// TODO: re-use a pool of buffers for GC optimization:

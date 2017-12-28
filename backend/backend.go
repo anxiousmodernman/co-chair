@@ -87,6 +87,7 @@ func (p *Proxy) Put(ctx context.Context, b *server.Backend) (*server.OpResult, e
 	}
 	bd.Domain = b.Domain
 	bd.IPs = combine(bd.IPs, b.Ips)
+	bd.Protocol = b.Protocol
 
 	err = p.DB.Save(&bd)
 	if err != nil {
@@ -187,6 +188,8 @@ type BackendData struct {
 	IPs    []string
 	// An optional endpoint we can call, expecting HTTP 200
 	HealthCheck string
+	// one of http:// or https://
+	Protocol string
 }
 
 // AsBackend is a conversion method to a grpc-sendable type.
@@ -194,6 +197,7 @@ func (bd BackendData) AsBackend() *server.Backend {
 	var b server.Backend
 	b.Domain = bd.Domain
 	b.Ips = bd.IPs
+	b.Protocol = bd.Protocol
 	return &b
 }
 

@@ -41,7 +41,7 @@ func (bl *BackendList) Render() vecty.ComponentOrHTML {
 			if len(b.Ips) == 0 {
 				continue
 			}
-			bi := BackendItem{Domain: b.Domain, IP: b.Ips[0]} // only single ip for now
+			bi := BackendItem{Domain: b.Domain, IP: b.Ips[0], Protocol: b.Protocol} // only single ip for now
 			items = append(items, &bi)
 		}
 	}
@@ -51,8 +51,9 @@ func (bl *BackendList) Render() vecty.ComponentOrHTML {
 
 // BackendItem is one of our blocks on the grid of live proxies.
 type BackendItem struct {
-	Domain string
-	IP     string
+	Domain   string
+	IP       string
+	Protocol string
 	vecty.Core
 }
 
@@ -69,9 +70,10 @@ func (bi *BackendItem) Render() vecty.ComponentOrHTML {
 
 	ip := styles.NewCSS("font-size", "75%")
 	click := vecty.Markup(event.Click(bi.deleteProxy))
+	msg := bi.Protocol + bi.IP
 
 	return elem.Div(box.Yield(), elem.Div(vecty.Text(bi.Domain)),
-		elem.Div(ip.Yield(), vecty.Text(bi.IP)),
+		elem.Div(ip.Yield(), vecty.Text(msg)),
 		elem.Div(),
 		elem.Button(vecty.Text("delete"), click),
 	)
