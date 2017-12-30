@@ -410,11 +410,14 @@ func run(conf config.Config) error {
 
 	go func() {
 		// we assume api is on localhost
-		fwdr, _ := backend.NewProxyForwarder(fmt.Sprintf("127.0.0.1:%s", conf.APIPort), logger)
+		fwdr, _ := backend.NewProxyForwarder(fmt.Sprintf("0.0.0.0:%s", conf.APIPort), logger)
 		s := &http.Server{
-			Addr:    fmt.Sprintf(":%s", conf.ProxyPort),
+			Addr:    fmt.Sprintf("0.0.0.0:%s", conf.ProxyPort),
 			Handler: fwdr,
-			// TODO: bundle of certs in a TLS config here
+			TLSConfig: &tls.Config{
+				GetCertificate: fwdr.GetCertificate,
+				// GetConfigForClient: fwdr.GetConfigForClient,
+			},
 		}
 		proxy <- s.ListenAndServe()
 	}()

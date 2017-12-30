@@ -3,8 +3,14 @@ package backend
 import (
 	"bytes"
 	"context"
+	"crypto/rsa"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
+	"errors"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"strings"
 
@@ -73,6 +79,9 @@ func (pf *ProxyForwarder) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Hmm... https://github.com/vulcand/oxy/issues/57#issuecomment-286491548
+	r.URL.Opaque = ""
+
 	splitted := strings.Split(dom, ":")
 
 	req := &server.StateRequest{Domain: splitted[0]}
@@ -91,6 +100,9 @@ func (pf *ProxyForwarder) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 				//r.URL = testutils.ParseURI(protocolFmt(r) + upstreams.Backends[0].Ips[0])
 				be := upstreams.Backends[0]
+				if r.TLS != nil {
+					r.Header.Set(forward.XForwardedProto, "https")
+				}
 				r.URL = testutils.ParseURI(be.Protocol + be.Ips[0])
 				pf.logger.Infof("proxying %s -> %s", dom, r.Host)
 
@@ -115,6 +127,63 @@ func (pf *ProxyForwarder) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotFound)
 	w.Write([]byte(fmt.Sprintf("upstream %s not found", dom)))
 	return
+}
+func (pf *ProxyForwarder) GetConfigForClient(hello *tls.ClientHelloInfo) (*tls.Config, error) {
+	cert, err := pf.GetCertificate(hello)
+	if err != nil {
+		return nil, err
+	}
+	var conf tls.Config
+	conf.Certificates = []tls.Certificate{*cert}
+	return &conf, nil
+}
+
+func (pf *ProxyForwarder) GetCertificate(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {
+
+	fmt.Println("hello", hello.ServerName)
+
+	priv, err := privateKeyFromFile("/opt/pki/dev_key.pem")
+	if err != nil {
+		return nil, err
+	}
+	crt, x509cert, err := certFromFile("/opt/pki/dev_cert.pem")
+	if err != nil {
+		return nil, err
+	}
+
+	cert := &tls.Certificate{
+		PrivateKey:  priv,
+		Certificate: crt,
+		Leaf:        x509cert,
+	}
+	return cert, nil
+}
+
+func certFromFile(path string) ([][]byte, *x509.Certificate, error) {
+	data, err := ioutil.ReadFile(path)
+	block, _ := pem.Decode(data)
+	if block == nil || block.Type != "PUBLIC KEY" {
+		return nil, nil, errors.New("invalid public key")
+	}
+
+	cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		return nil, nil, err
+	}
+	ret := make([][]byte, 1)
+	ret = append(ret, cert.Raw)
+	return ret, cert, nil
+}
+func privateKeyFromFile(path string) (*rsa.PrivateKey, error) {
+
+	privateKey, err := ioutil.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	priv, _ := pem.Decode(privateKey)
+
+	return x509.ParsePKCS1PrivateKey(priv.Bytes)
 }
 
 func (pf *ProxyForwarder) startMetricsListener() {
