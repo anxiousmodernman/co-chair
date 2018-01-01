@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
@@ -15,6 +16,17 @@ import (
 	"gitlab.com/DSASanFrancisco/co-chair/proto/server"
 	"google.golang.org/grpc"
 )
+
+func TestTCPProxyForwarder(t *testing.T) {
+
+	_, pc, cleanup := grpcListenerClientCleanup()
+	defer cleanup()
+
+	fwd := NewTCPForwarderFromGRPCClient(nil, pc, logrus.New())
+	s1 := httptest.NewServer(NewTestHandler(200))
+	s1.Start()
+	s1.Listener.Addr()
+}
 
 func TestProxyForwarder(t *testing.T) {
 
@@ -172,6 +184,12 @@ func NewFakeServer(respCode int) *FakeServer {
 	}
 
 	return &FakeServer{lis, &srv, lis.Addr().String()}
+}
+
+func NewTestHandler(respCode int) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(respCode)
+	}
 }
 
 type FakeServer struct {

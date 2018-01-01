@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"google.golang.org/grpc"
@@ -408,18 +409,79 @@ func run(conf config.Config) error {
 		grpcAPI <- httpsSrv.ListenAndServeTLS(conf.WebUICert, conf.WebUIKey)
 	}()
 
+	l, err := backend.NewTCPForwarder(conf.ProxyCert, conf.ProxyKey, conf.ProxyPort)
+	if err != nil {
+		return err
+	}
 	go func() {
-		// we assume api is on localhost
-		fwdr, _ := backend.NewProxyForwarder(fmt.Sprintf("0.0.0.0:%s", conf.APIPort), logger)
-		s := &http.Server{
-			Addr:    fmt.Sprintf("0.0.0.0:%s", conf.ProxyPort),
-			Handler: fwdr,
-			TLSConfig: &tls.Config{
-				GetCertificate: fwdr.GetCertificate,
-				// GetConfigForClient: fwdr.GetConfigForClient,
-			},
+		for {
+			tlsconn, err := l.Accept()
+			if err != nil {
+				logger.Errorf("proxy accept: %v", err)
+				continue
+			}
+			// handle connections async
+			go func() {
+				tlsconn.SetDeadline(time.Now().Add(3 * time.Second))
+				buf := make([]byte, 4096)
+				n, err := tlsconn.Read(buf)
+				if err != nil {
+					logger.Errorf("first read: %v", err)
+					return
+				}
+				tlsconn.SetDeadline(time.Now().Add(5 * time.Second))
+
+				var host string
+				lines := strings.Split(string(buf[:n]), "\r\n")
+				for _, line := range lines {
+					if strings.HasPrefix(line, "Host:") {
+						host = strings.TrimSpace(strings.Split(line, ":")[1])
+					}
+				}
+
+				// look up the domain in the db
+				var bd backend.BackendData
+				err = px.DB.One("Domain", host, &bd)
+				if err != nil {
+					if err == storm.ErrNotFound {
+						logger.Debug("backend not found: ", host)
+						return
+					}
+					logger.Error(err)
+					return
+				}
+				logger.Debugf("dialing backend: %v", bd.IPs[0])
+				bConn, err := tls.Dial("tcp", bd.IPs[0], &tls.Config{InsecureSkipVerify: true})
+				if err != nil {
+					logger.Errorf("dial backend: %v", err)
+					return
+				}
+				bConn.SetDeadline(time.Now().Add(3 * time.Second))
+				// our first write is the little buffer we read
+				// from the incoming conn, just passing it along
+				// after we've inspected it.
+				_, err = bConn.Write(buf[:n])
+				if err != nil {
+					logger.Errorf("first write to backend: %v", err)
+					return
+				}
+
+				var t = Tunnel{
+					ErrorState:  nil,
+					ErrorSig:    make(chan error),
+					ServerConn:  tlsconn,
+					BackendConn: bConn,
+				}
+
+				go t.pipe(tlsconn, bConn, "tlsconn->bConn")
+				go t.pipe(bConn, tlsconn, "bConn->tslconn")
+				logger.Debug("waiting")
+				err = <-t.ErrorSig
+				logger.Debugf("closing conns: %v", err)
+				bConn.Close()
+				tlsconn.Close()
+			}()
 		}
-		proxy <- s.ListenAndServe()
 	}()
 
 	if conf.ProxyInsecurePort != "" {
@@ -445,6 +507,47 @@ func run(conf config.Config) error {
 		}
 	}
 
+}
+
+func (t *Tunnel) pipe(src, dst net.Conn, dir string) {
+
+	buff := make([]byte, 0xffff)
+	for {
+		if t.ErrorState != nil {
+			return
+		}
+		n, err := src.Read(buff)
+		if err != nil {
+			logger.Errorf("read failed %v", err)
+			t.err(err)
+			return
+		}
+		b := buff[:n]
+
+		debg := true
+		if debg {
+			logger.Debugf("bufff %s %s", dir, string(b))
+		}
+
+		n, err = dst.Write(b)
+		if err != nil {
+			logger.Errorf("write failed %v", err)
+			t.err(err)
+			return
+		}
+	}
+}
+
+type Tunnel struct {
+	ServerConn  net.Conn
+	BackendConn net.Conn
+	ErrorState  error
+	ErrorSig    chan error
+}
+
+func (t *Tunnel) err(err error) {
+	t.ErrorState = err
+	t.ErrorSig <- err
 }
 
 func genClientKeypair(name, dbPath string) error {

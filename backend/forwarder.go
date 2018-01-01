@@ -11,9 +11,12 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"strings"
+	"time"
 
+	"github.com/asdine/storm"
 	"github.com/sirupsen/logrus"
 	"github.com/vulcand/oxy/forward"
 	"github.com/vulcand/oxy/testutils"
@@ -21,6 +24,151 @@ import (
 	"gitlab.com/DSASanFrancisco/co-chair/proto/server"
 	"google.golang.org/grpc"
 )
+
+// NewTCPForwarder ...
+func NewTCPForwarder(certPath, keyPath, port string) (net.Listener, error) {
+	cert, err := tls.LoadX509KeyPair(certPath, keyPath)
+	if err != nil {
+		return nil, err
+	}
+
+	conf := tls.Config{Certificates: []tls.Certificate{cert}}
+	addr := fmt.Sprintf("0.0.0.0:%s", port)
+	return tls.Listen("tcp", addr, &conf)
+}
+
+// TCPForwarder ...
+type TCPForwarder struct {
+	C      server.ProxyClient
+	L      net.Listener
+	logger *logrus.Logger
+	DB     *storm.DB
+}
+
+// Start ...
+func (f *TCPForwarder) Start() error {
+	go func() {
+		for {
+			conn, err := f.L.Accept()
+			if err != nil {
+				f.logger.Errorf("accept err: %v", err)
+				continue
+			}
+			go f.handleConn(conn)
+		}
+	}()
+
+	return nil
+}
+
+func (f *TCPForwarder) handleConn(conn net.Conn) {
+	conn.SetDeadline(time.Now().Add(3 * time.Second))
+	buf := make([]byte, 4096)
+	n, err := conn.Read(buf)
+	if err != nil {
+		f.logger.Errorf("first read: %v", err)
+		return
+	}
+	conn.SetDeadline(time.Now().Add(5 * time.Second))
+
+	var host string
+	lines := strings.Split(string(buf[:n]), "\r\n")
+	for _, line := range lines {
+		if strings.HasPrefix(line, "Host:") {
+			host = strings.TrimSpace(strings.Split(line, ":")[1])
+		}
+	}
+
+	// look up the domain in the db
+	var bd BackendData
+	err = f.DB.One("Domain", host, &bd)
+	if err != nil {
+		if err == storm.ErrNotFound {
+			f.logger.Debug("backend not found: ", host)
+			return
+		}
+		f.logger.Error(err)
+		return
+	}
+	f.logger.Debugf("dialing backend: %v", bd.IPs[0])
+	bConn, err := tls.Dial("tcp", bd.IPs[0], &tls.Config{InsecureSkipVerify: true})
+	if err != nil {
+		f.logger.Errorf("dial backend: %v", err)
+		return
+	}
+	bConn.SetDeadline(time.Now().Add(3 * time.Second))
+	// our first write is the little buffer we read
+	// from the incoming conn, just passing it along
+	// after we've inspected it.
+	_, err = bConn.Write(buf[:n])
+	if err != nil {
+		f.logger.Errorf("first write to backend: %v", err)
+		return
+	}
+
+	var t = Tunnel{
+		ErrorState:  nil,
+		ErrorSig:    make(chan error),
+		ServerConn:  conn,
+		BackendConn: bConn,
+	}
+
+	go t.pipe(conn, bConn, "conn->bConn")
+	go t.pipe(bConn, conn, "bConn->conn")
+	f.logger.Debug("waiting")
+	err = <-t.ErrorSig
+	f.logger.Debugf("closing conns: %v", err)
+	bConn.Close()
+	conn.Close()
+}
+
+// Stop ...
+func (f *TCPForwarder) Stop() error {
+	return f.L.Close()
+}
+
+func (t *Tunnel) pipe(src, dst net.Conn, dir string) {
+
+	buff := make([]byte, 0xffff)
+	for {
+		if t.ErrorState != nil {
+			return
+		}
+		n, err := src.Read(buff)
+		if err != nil {
+			t.err(err)
+			return
+		}
+		b := buff[:n]
+
+		n, err = dst.Write(b)
+		if err != nil {
+			t.err(err)
+			return
+		}
+	}
+}
+
+type Tunnel struct {
+	ServerConn  net.Conn
+	BackendConn net.Conn
+	ErrorState  error
+	ErrorSig    chan error
+}
+
+func (t *Tunnel) err(err error) {
+	t.ErrorState = err
+	t.ErrorSig <- err
+}
+
+// NewTCPForwarderFromGRPCClient ...
+func NewTCPForwarderFromGRPCClient(l net.Listener, pc server.ProxyClient, logger *logrus.Logger) *TCPForwarder {
+	return &TCPForwarder{
+		C:      pc,
+		L:      l,
+		logger: logger,
+	}
+}
 
 // ProxyForwarder is our type that actually handles connections from the
 // internet that want to proxy to services behind co-chair.
