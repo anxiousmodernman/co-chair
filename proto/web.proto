@@ -6,8 +6,8 @@ package web;
 import "github.com/johanbrandhorst/protobuf/proto/gopherjs.proto";
 
 // Define the package locations the generated files will go into
-option (gopherjs.gopherjs_package) = "gitlab.com/DSASanFrancisco/co-chair/proto/client";
-option go_package = "gitlab.com/DSASanFrancisco/co-chair/proto/server";
+option (gopherjs.gopherjs_package) = "github.com/anxiousmodernman/co-chair/proto/client";
+option go_package = "github.com/anxiousmodernman/co-chair/proto/server";
 
 service Proxy {
     rpc State(StateRequest) returns (ProxyState) {}

@@ -16,12 +16,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/anxiousmodernman/co-chair/proto/server"
 	"github.com/asdine/storm"
 	"github.com/sirupsen/logrus"
 	"github.com/vulcand/oxy/forward"
 	"github.com/vulcand/oxy/testutils"
 	"github.com/vulcand/oxy/trace"
-	"gitlab.com/DSASanFrancisco/co-chair/proto/server"
 	"google.golang.org/grpc"
 )
 

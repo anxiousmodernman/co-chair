@@ -13,8 +13,8 @@ import (
 
 	"github.com/codegangsta/negroni"
 	"github.com/gorilla/websocket"
-	"gitlab.com/DSASanFrancisco/co-chair/config"
-	"gitlab.com/DSASanFrancisco/co-chair/frontend/bundle"
+	"github.com/anxiousmodernman/co-chair/config"
+	"github.com/anxiousmodernman/co-chair/frontend/bundle"
 	"golang.org/x/oauth2"
 )
 

@@ -2,9 +2,9 @@ image: golang:1.9.2-alpine3.7
 
 variables:
   CHECKOUT: "/go/src/gitlab.com/DSASanFrancisco/"
-  PROJECT: "/go/src/gitlab.com/DSASanFrancisco/co-chair"
+  PROJECT: "/go/src/github.com/anxiousmodernman/co-chair"
 
-#    - cd /go/src/gitlab.com/DSASanFrancisco/co-chair && dep ensure
+#    - cd /go/src/github.com/anxiousmodernman/co-chair && dep ensure
 #    - cd .. & cp -r co-chair /go/src/gitlab.com/DSASanFrancisco
 
 test:

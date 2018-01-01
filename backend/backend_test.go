@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"gitlab.com/DSASanFrancisco/co-chair/proto/server"
+	"github.com/anxiousmodernman/co-chair/proto/server"
 )
 
 func TestCombine(t *testing.T) {

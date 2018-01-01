@@ -5,8 +5,8 @@ import (
 	"context"
 	"log"
 
-	"gitlab.com/DSASanFrancisco/co-chair/frontend/store"
-	"gitlab.com/DSASanFrancisco/co-chair/proto/client"
+	"github.com/anxiousmodernman/co-chair/frontend/store"
+	"github.com/anxiousmodernman/co-chair/proto/client"
 )
 
 // Client is a global handle to our grpc-over-websockets client.

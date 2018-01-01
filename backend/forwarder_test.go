@@ -12,8 +12,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/anxiousmodernman/co-chair/proto/server"
 	"github.com/sirupsen/logrus"
-	"gitlab.com/DSASanFrancisco/co-chair/proto/server"
 	"google.golang.org/grpc"
 )
 

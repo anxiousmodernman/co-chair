@@ -1,11 +1,11 @@
 package components
 
 import (
+	"github.com/anxiousmodernman/co-chair/frontend/styles"
 	"github.com/gopherjs/vecty"
 	"github.com/gopherjs/vecty/elem"
 	"github.com/gopherjs/vecty/event"
 	"github.com/gopherjs/vecty/prop"
-	"gitlab.com/DSASanFrancisco/co-chair/frontend/styles"
 )
 
 // Page returns a Body element suitable for vecty.RenderBody

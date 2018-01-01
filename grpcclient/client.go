@@ -9,7 +9,7 @@ import (
 	"github.com/Rudd-O/curvetls"
 	"google.golang.org/grpc"
 
-	"gitlab.com/DSASanFrancisco/co-chair/proto/server"
+	"github.com/anxiousmodernman/co-chair/proto/server"
 )
 
 // CoChairClient is a wrapper around our generated gRPC server.ProxyClient interface.

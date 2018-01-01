@@ -1,13 +1,13 @@
 package components
 
 import (
+	"github.com/anxiousmodernman/co-chair/frontend/api"
+	"github.com/anxiousmodernman/co-chair/frontend/store"
+	"github.com/anxiousmodernman/co-chair/frontend/styles"
+	"github.com/anxiousmodernman/co-chair/proto/client"
 	"github.com/gopherjs/vecty"
 	"github.com/gopherjs/vecty/elem"
 	"github.com/gopherjs/vecty/event"
-	"gitlab.com/DSASanFrancisco/co-chair/frontend/api"
-	"gitlab.com/DSASanFrancisco/co-chair/frontend/store"
-	"gitlab.com/DSASanFrancisco/co-chair/frontend/styles"
-	"gitlab.com/DSASanFrancisco/co-chair/proto/client"
 )
 
 // BackendList shows our configured proxy's state.

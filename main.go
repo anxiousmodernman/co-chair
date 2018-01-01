@@ -28,10 +28,10 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 
-	"gitlab.com/DSASanFrancisco/co-chair/backend"
-	"gitlab.com/DSASanFrancisco/co-chair/config"
-	"gitlab.com/DSASanFrancisco/co-chair/grpcclient"
-	"gitlab.com/DSASanFrancisco/co-chair/proto/server"
+	"github.com/anxiousmodernman/co-chair/backend"
+	"github.com/anxiousmodernman/co-chair/config"
+	"github.com/anxiousmodernman/co-chair/grpcclient"
+	"github.com/anxiousmodernman/co-chair/proto/server"
 )
 
 // Version is our software version.

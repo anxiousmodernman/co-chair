@@ -10,8 +10,8 @@ import (
 
 	"github.com/Rudd-O/curvetls"
 
+	"github.com/anxiousmodernman/co-chair/proto/server"
 	"github.com/asdine/storm"
-	"gitlab.com/DSASanFrancisco/co-chair/proto/server"
 )
 
 // Proxy is our server.ProxyServer implementation.

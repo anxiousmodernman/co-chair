@@ -7,12 +7,12 @@ import (
 
 	"honnef.co/go/js/dom"
 
+	"github.com/anxiousmodernman/co-chair/frontend/api"
+	"github.com/anxiousmodernman/co-chair/frontend/components"
+	"github.com/anxiousmodernman/co-chair/frontend/store"
+	"github.com/anxiousmodernman/co-chair/proto/client"
 	"github.com/gopherjs/gopherjs/js"
 	vecty "github.com/gopherjs/vecty"
-	"gitlab.com/DSASanFrancisco/co-chair/frontend/api"
-	"gitlab.com/DSASanFrancisco/co-chair/frontend/components"
-	"gitlab.com/DSASanFrancisco/co-chair/frontend/store"
-	"gitlab.com/DSASanFrancisco/co-chair/proto/client"
 )
 
 var (
