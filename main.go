@@ -139,13 +139,13 @@ func main() {
 
 	proxyCert := cli.StringFlag{
 		Name:  "proxyCert",
-		Usage: "for web ui: path to pem encoded tls certificate",
+		Usage: "for proxy: path to pem encoded tls certificate",
 		Value: "./cert.pem",
 	}
 
 	proxyKey := cli.StringFlag{
 		Name:  "proxyKey",
-		Usage: "for web ui: path to pem encoded tls private key",
+		Usage: "for proxy: path to pem encoded tls private key",
 		Value: "./key.pem",
 	}
 
