@@ -2,6 +2,8 @@ package backend
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"io"
@@ -9,6 +11,13 @@ import (
 	"strings"
 
 	"github.com/Rudd-O/curvetls"
+	"github.com/cloudflare/cfssl/cli/genkey"
+	"github.com/cloudflare/cfssl/csr"
+	"github.com/cloudflare/cfssl/helpers"
+	"github.com/cloudflare/cfssl/helpers/derhelpers"
+	"github.com/cloudflare/cfssl/initca"
+	"github.com/cloudflare/cfssl/signer"
+	"github.com/cloudflare/cfssl/signer/local"
 
 	"github.com/anxiousmodernman/co-chair/proto/server"
 	"github.com/asdine/storm"
@@ -67,6 +76,7 @@ func (p *Proxy) State(_ context.Context, req *server.StateRequest) (*server.Prox
 	}
 	for _, b := range backends {
 		fmt.Println("backend:", *b)
+		// do not leak private keys here
 		resp.Backends = append(resp.Backends, b.AsBackend())
 	}
 
@@ -75,19 +85,65 @@ func (p *Proxy) State(_ context.Context, req *server.StateRequest) (*server.Prox
 
 // Put adds a backend to our pool of proxied Backends.
 func (p *Proxy) Put(ctx context.Context, b *server.Backend) (*server.OpResult, error) {
+
 	var bd BackendData
 	err := p.DB.One("Domain", b.Domain, &bd)
-
 	if err != nil {
 		if err == storm.ErrNotFound {
-			// do nothing, always overwrite
+			// do nothing, so always overwrite the BackendData
 		} else {
 			return &server.OpResult{}, errors.New("")
 		}
 	}
+
 	bd.Domain = b.Domain
 	bd.IPs = combine(bd.IPs, b.Ips)
 	bd.Protocol = b.Protocol
+
+	if b.BackendCert != nil {
+		bd.BackendCert = b.BackendCert.Cert
+		bd.BackendKey = b.BackendCert.Key
+	} else {
+		// generate cert
+		c := csr.New()
+		rootCACert, csrPEM, rootCAKey, err := initca.New(c)
+		if err != nil {
+			return nil, err
+		}
+		_ = csrPEM
+		crt, err := tls.X509KeyPair(rootCAKey, rootCACert)
+		if err != nil {
+			return nil, err
+		}
+
+		var password string // blank for now
+		derredUp, err := helpers.GetKeyDERFromPEM(rootCAKey, []byte(password))
+		if err != nil {
+			return nil, err
+		}
+		priv, err := derhelpers.ParsePrivateKeyDER(derredUp)
+		if err != nil {
+			return nil, err
+		}
+		signr, err := local.NewSigner(priv, crt.Leaf, x509.ECDSAWithSHA512, nil)
+		if err != nil {
+			return nil, err
+		}
+		// our actual server cert and key?
+		req := csr.CertificateRequest{KeyRequest: csr.NewBasicKeyRequest()}
+		var key, csrBytes []byte
+		g := &csr.Generator{Validator: genkey.Validator}
+		csrBytes, key, err = g.ProcessRequest(&req)
+
+		var signReq signer.SignRequest
+		signReq.Hosts = []string{b.Domain}
+		signReq.Request = string(csrBytes)
+		newCert, err := signr.Sign(signReq)
+		if err != nil {
+			return nil, err
+		}
+		_, _ = newCert, key
+	}
 
 	err = p.DB.Save(&bd)
 	if err != nil {
@@ -190,6 +246,8 @@ type BackendData struct {
 	HealthCheck string
 	// one of http:// or https://
 	Protocol string
+	// Our TLS certs and keys.
+	BackendCert, BackendKey []byte
 }
 
 // AsBackend is a conversion method to a grpc-sendable type.
@@ -201,6 +259,9 @@ func (bd BackendData) AsBackend() *server.Backend {
 	return &b
 }
 
+// KeyPair is a database type that represents curvetls key pairs. A KeyPair
+// must be in the database for each pure grpc client that wants to connect.
+// Not used for grpc websocket clients.
 type KeyPair struct {
 	Name string `storm:"unique,id"`
 	// Pub and Priv are base64 strings that represent curvetls keys
@@ -209,6 +270,8 @@ type KeyPair struct {
 	Priv string
 }
 
+// RetrieveServerKeys gets the curvetls public key for our co-chair instance's api.
+// Clients will need to know the server's public key.
 func RetrieveServerKeys(db *storm.DB) (curvetls.Pubkey, curvetls.Privkey, error) {
 	var kp KeyPair
 	err := db.One("Name", "server", &kp)
