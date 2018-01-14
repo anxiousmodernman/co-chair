@@ -2,8 +2,15 @@ package backend
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/pem"
 	"fmt"
 	"io/ioutil"
+	"math/big"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -22,13 +29,67 @@ func TestTCPProxyForwarder(t *testing.T) {
 	_, pc, cleanup := grpcListenerClientCleanup()
 	defer cleanup()
 
-	fwd := NewTCPForwarderFromGRPCClient(nil, pc, logrus.New())
-	s1 := httptest.NewServer(NewTestHandler(200))
-	s1.Start()
-	s1.Listener.Addr()
+	l, _ := net.Listen("tcp", "0.0.0.0:0")
+
+	fwd := NewTCPForwarderFromGRPCClient(l, pc, logrus.New())
+	if fwd == nil {
+	}
+
+	ca, capriv, err := createCA()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// cert scenarios
+	// always frontend cert
+	// if no backend cert: http
+	// if backend cert: https
+	s1Cert, s1Key, err := createSignedCert("server1", ca, capriv)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s1, err := newTestServer(200, s1Cert, s1Key, ca)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s2Cert, s2Key, err := createSignedCert("server2", ca, capriv)
+	s2, err := newTestServer(202, s2Cert, s2Key, ca)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	s1.StartTLS()
+	defer s1.Close()
+	s2.StartTLS()
+	defer s2.Close()
+
+	go fwd.Start()
+	defer fwd.Stop()
+
+	// make a TLS client
+
+}
+
+func newTestServer(code int, myCert, myPriv, caCert []byte) (*httptest.Server, error) {
+	s := httptest.NewUnstartedServer(NewTestHandler(code))
+	certs := x509.NewCertPool()
+	certs.AppendCertsFromPEM(caCert)
+	cert, err := tls.X509KeyPair(myCert, myPriv)
+	if err != nil {
+		return nil, err
+	}
+	s.TLS = &tls.Config{
+		RootCAs:      certs,
+		Certificates: []tls.Certificate{cert},
+	}
+
+	return s, nil
 }
 
 func TestProxyForwarder(t *testing.T) {
+
+	// TODO: refactor or remove.
+	t.Skip("this test is deprecated")
 
 	// Testing ProxyForwarder
 	// * create listeners for: proxy, grpcMgmtApi; a shared *Proxy between them
@@ -206,4 +267,112 @@ func (f *FakeServer) Start() {
 
 func (f *FakeServer) Stop() {
 	f.srv.Shutdown(context.TODO())
+}
+
+// returns ca cert, private key, and error
+func createCA() ([]byte, []byte, error) {
+	// The newly-generated RSA key priv has a public key field as well.
+	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
+	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
+
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to generate serial number: %s", err)
+	}
+	template := x509.Certificate{
+		SerialNumber: serialNumber, // big.Int
+		Subject: pkix.Name{
+			CommonName:   "Test Org CA",
+			Organization: []string{"Test Org"},
+		},
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().Add(time.Duration(10) * time.Hour),
+		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		BasicConstraintsValid: true,
+		DNSNames:              []string{"server1,server2,server3"},
+	}
+	// the 3rd param is the "parent" cert; in this case, parent is the same as the 2nd param, so
+	// the new cert is self-signed. Priv must always be the private key of the signer.
+	derBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, &priv.PublicKey, priv)
+	if err != nil {
+		return nil, nil, fmt.Errorf("create cert: %v", err)
+	}
+
+	pemCert := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: derBytes})
+	pemKey := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(priv)})
+
+	// the root CA has to be distributed to all clients and servers
+	return pemCert, pemKey, nil
+}
+
+func createSignedCert(name string, parentCert, parentPrivateKey []byte) ([]byte, []byte, error) {
+	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		return nil, nil, err
+	}
+	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
+	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to generate serial number: %s", err)
+	}
+	template := x509.Certificate{
+		SerialNumber: serialNumber, // big.Int
+		Subject: pkix.Name{
+			CommonName:   name,
+			Organization: []string{"Test Org"},
+		},
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().Add(time.Duration(10) * time.Hour),
+		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		BasicConstraintsValid: true,
+		DNSNames:              []string{name},
+	}
+	blck, rest := pem.Decode(parentCert)
+	if len(rest) > 0 {
+		panic("expected exactly one pem-encoded block")
+	}
+	ca, err := x509.ParseCertificate(blck.Bytes)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	blck, rest = pem.Decode(parentPrivateKey)
+	if len(rest) > 0 {
+		panic("expected exactly one pem-encoded block")
+	}
+
+	parentPriv, err := x509.ParsePKCS1PrivateKey(blck.Bytes)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// the new damn cert
+	derBytes, err := x509.CreateCertificate(rand.Reader, &template, ca, &priv.PublicKey, parentPriv)
+	if err != nil {
+		return nil, nil, fmt.Errorf("create cert: %v", err)
+	}
+
+	pemCert := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: derBytes})
+	pemKey := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(priv)})
+
+	return pemCert, pemKey, nil
+}
+
+func newTestHTTPSClient(rootCA []byte) *http.Client {
+	certs := x509.NewCertPool()
+	certs.AppendCertsFromPEM(rootCA)
+	tlsConf := &tls.Config{RootCAs: certs}
+
+	c := &http.Client{}
+	tpt := &http.Transport{
+		TLSClientConfig: tlsConf,
+	}
+	c.Transport = tpt
+	return c
 }
