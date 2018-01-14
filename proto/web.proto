@@ -23,6 +23,13 @@ message Backend {
     string health_check = 3;
     string health_status = 4;
     string protocol = 5;
+    X509Cert internet_cert = 6;
+    X509Cert backend_cert = 7;
+}
+
+message X509Cert {
+    bytes cert = 1;
+    bytes key = 2;
 }
 
 message Key {

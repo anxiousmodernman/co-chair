@@ -11,6 +11,7 @@
 
 	It has these top-level messages:
 		Backend
+		X509Cert
 		Key
 		KV
 		ProxyState
@@ -37,6 +38,8 @@ type Backend struct {
 	HealthCheck  string
 	HealthStatus string
 	Protocol     string
+	InternetCert *X509Cert
+	BackendCert  *X509Cert
 }
 
 // GetDomain gets the Domain of the Backend.
@@ -79,6 +82,22 @@ func (m *Backend) GetProtocol() (x string) {
 	return m.Protocol
 }
 
+// GetInternetCert gets the InternetCert of the Backend.
+func (m *Backend) GetInternetCert() (x *X509Cert) {
+	if m == nil {
+		return x
+	}
+	return m.InternetCert
+}
+
+// GetBackendCert gets the BackendCert of the Backend.
+func (m *Backend) GetBackendCert() (x *X509Cert) {
+	if m == nil {
+		return x
+	}
+	return m.BackendCert
+}
+
 // MarshalToWriter marshals Backend to the provided writer.
 func (m *Backend) MarshalToWriter(writer jspb.Writer) {
 	if m == nil {
@@ -103,6 +122,18 @@ func (m *Backend) MarshalToWriter(writer jspb.Writer) {
 
 	if len(m.Protocol) > 0 {
 		writer.WriteString(5, m.Protocol)
+	}
+
+	if m.InternetCert != nil {
+		writer.WriteMessage(6, func() {
+			m.InternetCert.MarshalToWriter(writer)
+		})
+	}
+
+	if m.BackendCert != nil {
+		writer.WriteMessage(7, func() {
+			m.BackendCert.MarshalToWriter(writer)
+		})
 	}
 
 	return
@@ -133,6 +164,14 @@ func (m *Backend) UnmarshalFromReader(reader jspb.Reader) *Backend {
 			m.HealthStatus = reader.ReadString()
 		case 5:
 			m.Protocol = reader.ReadString()
+		case 6:
+			reader.ReadMessage(func() {
+				m.InternetCert = m.InternetCert.UnmarshalFromReader(reader)
+			})
+		case 7:
+			reader.ReadMessage(func() {
+				m.BackendCert = m.BackendCert.UnmarshalFromReader(reader)
+			})
 		default:
 			reader.SkipField()
 		}
@@ -143,6 +182,84 @@ func (m *Backend) UnmarshalFromReader(reader jspb.Reader) *Backend {
 
 // Unmarshal unmarshals a Backend from a slice of bytes.
 func (m *Backend) Unmarshal(rawBytes []byte) (*Backend, error) {
+	reader := jspb.NewReader(rawBytes)
+
+	m = m.UnmarshalFromReader(reader)
+
+	if err := reader.Err(); err != nil {
+		return nil, err
+	}
+
+	return m, nil
+}
+
+type X509Cert struct {
+	Cert []byte
+	Key  []byte
+}
+
+// GetCert gets the Cert of the X509Cert.
+func (m *X509Cert) GetCert() (x []byte) {
+	if m == nil {
+		return x
+	}
+	return m.Cert
+}
+
+// GetKey gets the Key of the X509Cert.
+func (m *X509Cert) GetKey() (x []byte) {
+	if m == nil {
+		return x
+	}
+	return m.Key
+}
+
+// MarshalToWriter marshals X509Cert to the provided writer.
+func (m *X509Cert) MarshalToWriter(writer jspb.Writer) {
+	if m == nil {
+		return
+	}
+
+	if len(m.Cert) > 0 {
+		writer.WriteBytes(1, m.Cert)
+	}
+
+	if len(m.Key) > 0 {
+		writer.WriteBytes(2, m.Key)
+	}
+
+	return
+}
+
+// Marshal marshals X509Cert to a slice of bytes.
+func (m *X509Cert) Marshal() []byte {
+	writer := jspb.NewWriter()
+	m.MarshalToWriter(writer)
+	return writer.GetResult()
+}
+
+// UnmarshalFromReader unmarshals a X509Cert from the provided reader.
+func (m *X509Cert) UnmarshalFromReader(reader jspb.Reader) *X509Cert {
+	for reader.Next() {
+		if m == nil {
+			m = &X509Cert{}
+		}
+
+		switch reader.GetFieldNumber() {
+		case 1:
+			m.Cert = reader.ReadBytes()
+		case 2:
+			m.Key = reader.ReadBytes()
+		default:
+			reader.SkipField()
+		}
+	}
+
+	return m
+}
+
+// Unmarshal unmarshals a X509Cert from a slice of bytes.
+func (m *X509Cert) Unmarshal(rawBytes []byte) (*X509Cert, error) {
 	reader := jspb.NewReader(rawBytes)
 
 	m = m.UnmarshalFromReader(reader)
