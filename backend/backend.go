@@ -28,7 +28,7 @@ type Proxy struct {
 	DB *storm.DB
 }
 
-// NewProxy is our proxy constructor.
+// NewProxy is our constructor for the server.ProxyServer implementation.
 func NewProxy(path string) (*Proxy, error) {
 	db, err := storm.Open(path)
 	if err != nil {
