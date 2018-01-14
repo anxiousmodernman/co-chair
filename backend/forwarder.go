@@ -149,6 +149,7 @@ func (t *Tunnel) pipe(src, dst net.Conn, dir string) {
 	}
 }
 
+// A Tunnel streams data between two conns.
 type Tunnel struct {
 	ServerConn  net.Conn
 	BackendConn net.Conn
@@ -177,10 +178,7 @@ type ProxyForwarder struct {
 	logger      *logrus.Logger
 	metrics     chan *bytes.Buffer
 	metricsStop chan bool
-	// ProxyClient is itself an interface, so we do not use a pointer here
-	// in our struct definition. But if a pointer to a concrete implementation
-	// is passed, "c" will still be a pointer/reference, so we can share the
-	// client connection with other ProxyForwarder methods.
+	// ProxyClient is a generated gRPC interface
 	c server.ProxyClient
 }
 
@@ -276,6 +274,8 @@ func (pf *ProxyForwarder) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(fmt.Sprintf("upstream %s not found", dom)))
 	return
 }
+
+// GetConfigForClient ...
 func (pf *ProxyForwarder) GetConfigForClient(hello *tls.ClientHelloInfo) (*tls.Config, error) {
 	cert, err := pf.GetCertificate(hello)
 	if err != nil {
@@ -286,6 +286,7 @@ func (pf *ProxyForwarder) GetConfigForClient(hello *tls.ClientHelloInfo) (*tls.C
 	return &conf, nil
 }
 
+// GetCertificate ...
 func (pf *ProxyForwarder) GetCertificate(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {
 
 	fmt.Println("hello", hello.ServerName)
