@@ -150,7 +150,11 @@ func (f *TCPForwarder) handleConn(ctx context.Context, conn net.Conn) {
 		conn.Close()
 		return
 	}
-	fmt.Println("gotta dial now", bd.IPs[0])
+	if len(bd.IPs) < 1 {
+		f.logger.Errorf("backend %s has no configured IPs", host)
+		conn.Close()
+		return
+	}
 	f.logger.Debugf("dialing backend: %v", bd.IPs[0])
 	bConn, err := tls.Dial("tcp", bd.IPs[0], &tls.Config{InsecureSkipVerify: true})
 	if err != nil {
