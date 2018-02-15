@@ -76,20 +76,19 @@ func TestTCPProxyForwarder(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// resp, err := c.Do(req)
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
-	// if resp.StatusCode != 404 {
-	// 	t.Errorf("expected 404 since we've yet to register our backend")
-	// }
+	resp, err := c.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.StatusCode != 404 {
+		t.Errorf("expected 404 since we've yet to register our backend")
+	}
 	b := makeBackend("server2", s2.Listener.Addr().String(), s2Cert, s2Key)
 	_, err = pc.Put(context.TODO(), b)
 	if err != nil {
 		t.Fatalf("could not add backend with grpc: %v", err)
 	}
-	time.Sleep(1 * time.Second)
-	resp, err := c.Do(req)
+	resp, err = c.Do(req)
 	if err != nil {
 		t.Fatal(err)
 	}
