@@ -37,6 +37,41 @@ func NewTCPForwarder(certPath, keyPath, port string) (net.Listener, error) {
 	return tls.Listen("tcp", addr, &conf)
 }
 
+// An Opt lets us set values on a fwdConf.
+type Opt func(*TCPForwarder)
+
+// WithDBPath opens a DB at path and sets it on our TCPForwarder.
+func WithDBPath(path string) Opt {
+	return func(fwdr *TCPForwarder) {
+		db, err := storm.Open(path)
+		if err != nil {
+			panic(err)
+		}
+		fwdr.DB = db
+	}
+}
+
+// WithLogger sets our logger.
+func WithLogger(logger *logrus.Logger) Opt {
+	return func(fwdr *TCPForwarder) {
+		fwdr.logger = logger
+	}
+}
+
+// WithProxyClient sets our grpc server.ProxyClient.
+func WithProxyClient(pc server.ProxyClient) Opt {
+	return func(fwdr *TCPForwarder) {
+		fwdr.C = pc
+	}
+}
+
+// WithListener sets our TCPForwarder's net.Listener.
+func WithListener(l net.Listener) Opt {
+	return func(fwdr *TCPForwarder) {
+		fwdr.L = l
+	}
+}
+
 // TCPForwarder ...
 type TCPForwarder struct {
 	C      server.ProxyClient
@@ -76,11 +111,9 @@ func (f *TCPForwarder) Start() error {
 func (f *TCPForwarder) handleConn(ctx context.Context, conn net.Conn) {
 	_, done := context.WithCancel(ctx)
 	defer done()
-	fmt.Println("DEAL WITH IT B-)")
 	conn.SetDeadline(time.Now().Add(3 * time.Second))
 	buf := make([]byte, 4096)
 	n, err := conn.Read(buf)
-	fmt.Println("Doin a read")
 	if err != nil {
 		f.logger.Errorf("first read: %v", err)
 		return
