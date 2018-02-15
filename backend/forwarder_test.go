@@ -32,7 +32,7 @@ func TestTCPProxyForwarder(t *testing.T) {
 
 	svr, pc, cleanup := grpcListenerClientCleanup()
 	defer cleanup()
-	_ = svr
+	_ = svr // Serve() has already been called
 
 	ca, capriv, err := createCA()
 	if err != nil {
@@ -47,7 +47,7 @@ func TestTCPProxyForwarder(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s1, err := newTestServer(200, s1Cert, s1Key, ca)
+	s1, err := newTestServer(201, s1Cert, s1Key, ca)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -59,6 +59,7 @@ func TestTCPProxyForwarder(t *testing.T) {
 
 	s1.StartTLS()
 	defer s1.Close()
+
 	s2.StartTLS()
 	defer s2.Close()
 
@@ -67,7 +68,7 @@ func TestTCPProxyForwarder(t *testing.T) {
 	// TODO: change to tls listener with all certs in config
 	l, _ := tls.Listen("tcp", "0.0.0.0:0", proxyTLSConf)
 
-	fwd := NewTCPForwarderFromGRPCClient(l, pc, f.Name(), logrus.New())
+	fwd := NewTCPForwarderFromGRPCClient(l, pc, svr.DB, logrus.New())
 	if fwd == nil {
 	}
 	go fwd.Start()
@@ -75,14 +76,11 @@ func TestTCPProxyForwarder(t *testing.T) {
 
 	// make a TLS client
 	c := newTestHTTPSClient(ca)
-	_ = c
+
 	// match port in an address that looks like [::]:12345
 	re := regexp.MustCompile(`[\[\]:]+(\d+)`)
 	matches := re.FindStringSubmatch(l.Addr().String())
 	port := matches[1]
-	fmt.Println("port:", port)
-	fmt.Println("raw addr:", l.Addr().String())
-	fmt.Println("matches", matches)
 
 	req, err := http.NewRequest("GET",
 		fmt.Sprintf("https://server2:%s/", port),
@@ -90,15 +88,37 @@ func TestTCPProxyForwarder(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_ = req
+	// resp, err := c.Do(req)
+	// if err != nil {
+	// 	t.Fatal(err)
+	// }
+	// if resp.StatusCode != 404 {
+	// 	t.Errorf("expected 404 since we've yet to register our backend")
+	// }
+	b := makeBackend("server2", s2.Listener.Addr().String(), s2Cert, s2Key)
+	_, err = pc.Put(context.TODO(), b)
+	if err != nil {
+		t.Fatalf("could not add backend with grpc: %v", err)
+	}
+	time.Sleep(1 * time.Second)
 	resp, err := c.Do(req)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_ = resp
-	// if resp.StatusCode != 404 {
-	// 	t.Errorf("expected 404 since we've yet to register our backend")
-	// }
+	if resp.StatusCode != 202 {
+		t.Errorf("expected 202 got %v", resp.StatusCode)
+	}
+}
+
+func makeBackend(domain, addr string, cert, key []byte) *server.Backend {
+	var b server.Backend
+	b.Domain = domain
+	b.Ips = []string{addr}
+	var c server.X509Cert
+	c.Cert = cert
+	c.Key = key
+	b.BackendCert = &c
+	return &b
 }
 
 func newProxyTLSConfig(caCert, s1cert, s1key, s2cert, s2key []byte) *tls.Config {
@@ -246,7 +266,7 @@ func TestProxyForwarder(t *testing.T) {
 	}
 }
 
-func grpcListenerClientCleanup() (*grpc.Server, server.ProxyClient, func()) {
+func grpcListenerClientCleanup() (*Proxy, server.ProxyClient, func()) {
 	// Proxy, our concrent implementation
 	dir, _ := ioutil.TempDir("", "co-chair-test")
 	dbPath := filepath.Join(dir, "co-chair-test.db")
@@ -278,7 +298,7 @@ func grpcListenerClientCleanup() (*grpc.Server, server.ProxyClient, func()) {
 		os.RemoveAll(dir)
 	}
 
-	return gs, pc, cleanup
+	return px, pc, cleanup
 }
 
 // NewFakeServer sets up an http.Server that will only respond with the provided
@@ -304,6 +324,7 @@ func NewFakeServer(respCode int) *FakeServer {
 
 func NewTestHandler(respCode int) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		fmt.Println("RESPONSE CODE?", respCode)
 		w.WriteHeader(respCode)
 	}
 }

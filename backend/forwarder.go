@@ -92,7 +92,7 @@ func (f *TCPForwarder) Start() error {
 			ctx := context.Background()
 			ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 			defer cancel()
-			go f.handleConn(ctx, conn)
+			f.handleConn(ctx, conn)
 
 			select {
 			case <-ctx.Done():
@@ -229,11 +229,7 @@ func (t *Tunnel) err(err error) {
 }
 
 // NewTCPForwarderFromGRPCClient ...
-func NewTCPForwarderFromGRPCClient(l net.Listener, pc server.ProxyClient, dbPath string, logger *logrus.Logger) *TCPForwarder {
-	db, err := storm.Open(dbPath)
-	if err != nil {
-		panic(err)
-	}
+func NewTCPForwarderFromGRPCClient(l net.Listener, pc server.ProxyClient, db *storm.DB, logger *logrus.Logger) *TCPForwarder {
 	return &TCPForwarder{
 		C:      pc,
 		L:      l,
