@@ -39,10 +39,6 @@ func TestTCPProxyForwarder(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// cert scenarios
-	// always frontend cert
-	// if no backend cert: http
-	// if backend cert: https
 	s1Cert, s1Key, err := createSignedCert("server1", ca, capriv)
 	if err != nil {
 		t.Fatal(err)
@@ -59,32 +55,24 @@ func TestTCPProxyForwarder(t *testing.T) {
 
 	s1.StartTLS()
 	defer s1.Close()
-
 	s2.StartTLS()
 	defer s2.Close()
 
 	proxyTLSConf := newProxyTLSConfig(ca, s1Cert, s1Key, s2Cert, s2Key)
 
-	// TODO: change to tls listener with all certs in config
 	l, _ := tls.Listen("tcp", "0.0.0.0:0", proxyTLSConf)
 
 	fwd := NewTCPForwarderFromGRPCClient(l, pc, svr.DB, logrus.New())
-	if fwd == nil {
-	}
 	go fwd.Start()
 	defer fwd.Stop()
-
-	// make a TLS client
-	c := newTestHTTPSClient(ca)
 
 	// match port in an address that looks like [::]:12345
 	re := regexp.MustCompile(`[\[\]:]+(\d+)`)
 	matches := re.FindStringSubmatch(l.Addr().String())
-	port := matches[1]
+	proxyPort := matches[1]
 
-	req, err := http.NewRequest("GET",
-		fmt.Sprintf("https://server2:%s/", port),
-		nil)
+	c := newTestHTTPSClient(ca)
+	req, err := http.NewRequest("GET", fmt.Sprintf("https://server2:%s/", proxyPort), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
