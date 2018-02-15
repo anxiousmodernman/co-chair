@@ -80,28 +80,23 @@ type TCPForwarder struct {
 	DB     *storm.DB
 }
 
-// Start ...
+// Start accepts TCP connections.
 func (f *TCPForwarder) Start() error {
 	go func() {
 		for {
 			conn, err := f.L.Accept()
 			if err != nil {
+				if err, ok := err.(net.Error); ok && err.Temporary() {
+					f.logger.Errorf("accept err (temporary): %v", err)
+					continue
+				}
 				f.logger.Errorf("accept err: %v", err)
-				continue
+				return
 			}
 			ctx := context.Background()
 			ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 			defer cancel()
-			f.handleConn(ctx, conn)
-
-			select {
-			case <-ctx.Done():
-				break
-			}
-			fmt.Println("all don")
-			conn.Close()
-			return
-
+			go f.handleConn(ctx, conn)
 		}
 	}()
 
@@ -140,7 +135,6 @@ func (f *TCPForwarder) handleConn(ctx context.Context, conn net.Conn) {
 			fmt.Println("NOT FOUND", err)
 			tlsconn, ok := conn.(*tls.Conn)
 			if ok {
-				// TODO ...
 				fmt.Println("we are tls")
 				tlsconn.Write([]byte("HTTP/2.0 404 Not Found\r\n\r\n\r\n"))
 			} else {
@@ -148,10 +142,12 @@ func (f *TCPForwarder) handleConn(ctx context.Context, conn net.Conn) {
 			}
 
 			f.logger.Debug("backend not found: ", host)
+			conn.Close()
 			return
 		}
 		f.logger.Error(err)
 		fmt.Println("ERROR", err)
+		conn.Close()
 		return
 	}
 	fmt.Println("gotta dial now", bd.IPs[0])
