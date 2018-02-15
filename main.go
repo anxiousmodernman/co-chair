@@ -413,6 +413,7 @@ func run(conf config.Config) error {
 	if err != nil {
 		return err
 	}
+	// TCPForwarder routine
 	go func() {
 		for {
 			tlsconn, err := l.Accept()
@@ -420,7 +421,7 @@ func run(conf config.Config) error {
 				logger.Errorf("proxy accept: %v", err)
 				continue
 			}
-			// handle connections async
+			// we accepted a tls connection, handle it asynchronously
 			go func() {
 				tlsconn.SetDeadline(time.Now().Add(3 * time.Second))
 				buf := make([]byte, 4096)
