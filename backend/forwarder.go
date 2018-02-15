@@ -162,12 +162,14 @@ func (f *TCPForwarder) handleConn(ctx context.Context, conn net.Conn) {
 		return
 	}
 	bConn.SetDeadline(time.Now().Add(3 * time.Second))
-	// our first write is the little buffer we read
-	// from the incoming conn, just passing it along
-	// after we've inspected it.
+	// our first backend write is the little buffer we read
+	// from the incoming conn, by writing here we
+	// pass it upstream after we've inspected it.
 	_, err = bConn.Write(buf[:n])
 	if err != nil {
 		f.logger.Errorf("first write to backend: %v", err)
+		conn.Close()
+		bConn.Close()
 		return
 	}
 
@@ -202,14 +204,14 @@ func (t *Tunnel) pipe(src, dst net.Conn, dir string) {
 		}
 		n, err := src.Read(buff)
 		if err != nil {
-			t.err(err)
+			t.err(fmt.Errorf("%s read: %v", dir, err))
 			return
 		}
 		b := buff[:n]
 
 		n, err = dst.Write(b)
 		if err != nil {
-			t.err(err)
+			t.err(fmt.Errorf("%s write: %v", dir, err))
 			return
 		}
 	}
