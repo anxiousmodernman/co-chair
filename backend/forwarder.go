@@ -54,17 +54,33 @@ func (f *TCPForwarder) Start() error {
 				f.logger.Errorf("accept err: %v", err)
 				continue
 			}
-			go f.handleConn(conn)
+			ctx := context.Background()
+			ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+			defer cancel()
+			go f.handleConn(ctx, conn)
+
+			select {
+			case <-ctx.Done():
+				break
+			}
+			fmt.Println("all don")
+			conn.Close()
+			return
+
 		}
 	}()
 
 	return nil
 }
 
-func (f *TCPForwarder) handleConn(conn net.Conn) {
+func (f *TCPForwarder) handleConn(ctx context.Context, conn net.Conn) {
+	_, done := context.WithCancel(ctx)
+	defer done()
+	fmt.Println("DEAL WITH IT B-)")
 	conn.SetDeadline(time.Now().Add(3 * time.Second))
 	buf := make([]byte, 4096)
 	n, err := conn.Read(buf)
+	fmt.Println("Doin a read")
 	if err != nil {
 		f.logger.Errorf("first read: %v", err)
 		return
@@ -78,18 +94,34 @@ func (f *TCPForwarder) handleConn(conn net.Conn) {
 			host = strings.TrimSpace(strings.Split(line, ":")[1])
 		}
 	}
+	fmt.Println("time for a lookup")
+	if f.DB == nil {
+		fmt.Println("DB IS NIL")
+	}
 
 	// look up the domain in the db
 	var bd BackendData
 	err = f.DB.One("Domain", host, &bd)
 	if err != nil {
 		if err == storm.ErrNotFound {
+			fmt.Println("NOT FOUND", err)
+			tlsconn, ok := conn.(*tls.Conn)
+			if ok {
+				// TODO ...
+				fmt.Println("we are tls")
+				tlsconn.Write([]byte("HTTP/2.0 404 Not Found\r\n\r\n\r\n"))
+			} else {
+				conn.Write([]byte("HTTP/2.0 404 Not Found\r\n"))
+			}
+
 			f.logger.Debug("backend not found: ", host)
 			return
 		}
 		f.logger.Error(err)
+		fmt.Println("ERROR", err)
 		return
 	}
+	fmt.Println("gotta dial now", bd.IPs[0])
 	f.logger.Debugf("dialing backend: %v", bd.IPs[0])
 	bConn, err := tls.Dial("tcp", bd.IPs[0], &tls.Config{InsecureSkipVerify: true})
 	if err != nil {
@@ -115,6 +147,7 @@ func (f *TCPForwarder) handleConn(conn net.Conn) {
 
 	go t.pipe(conn, bConn, "conn->bConn")
 	go t.pipe(bConn, conn, "bConn->conn")
+	fmt.Println("waiting now")
 	f.logger.Debug("waiting")
 	err = <-t.ErrorSig
 	f.logger.Debugf("closing conns: %v", err)
@@ -163,11 +196,16 @@ func (t *Tunnel) err(err error) {
 }
 
 // NewTCPForwarderFromGRPCClient ...
-func NewTCPForwarderFromGRPCClient(l net.Listener, pc server.ProxyClient, logger *logrus.Logger) *TCPForwarder {
+func NewTCPForwarderFromGRPCClient(l net.Listener, pc server.ProxyClient, dbPath string, logger *logrus.Logger) *TCPForwarder {
+	db, err := storm.Open(dbPath)
+	if err != nil {
+		panic(err)
+	}
 	return &TCPForwarder{
 		C:      pc,
 		L:      l,
 		logger: logger,
+		DB:     db,
 	}
 }
 

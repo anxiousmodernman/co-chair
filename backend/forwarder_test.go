@@ -16,6 +16,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"regexp"
 	"testing"
 	"time"
 
@@ -25,15 +26,13 @@ import (
 )
 
 func TestTCPProxyForwarder(t *testing.T) {
+	os.TempDir()
+	f, _ := ioutil.TempFile("", "tempdb")
+	f.Close()
 
-	_, pc, cleanup := grpcListenerClientCleanup()
+	svr, pc, cleanup := grpcListenerClientCleanup()
 	defer cleanup()
-
-	l, _ := net.Listen("tcp", "0.0.0.0:0")
-
-	fwd := NewTCPForwarderFromGRPCClient(l, pc, logrus.New())
-	if fwd == nil {
-	}
+	_ = svr
 
 	ca, capriv, err := createCA()
 	if err != nil {
@@ -63,11 +62,67 @@ func TestTCPProxyForwarder(t *testing.T) {
 	s2.StartTLS()
 	defer s2.Close()
 
+	proxyTLSConf := newProxyTLSConfig(ca, s1Cert, s1Key, s2Cert, s2Key)
+
+	// TODO: change to tls listener with all certs in config
+	l, _ := tls.Listen("tcp", "0.0.0.0:0", proxyTLSConf)
+
+	fwd := NewTCPForwarderFromGRPCClient(l, pc, f.Name(), logrus.New())
+	if fwd == nil {
+	}
 	go fwd.Start()
 	defer fwd.Stop()
 
 	// make a TLS client
+	c := newTestHTTPSClient(ca)
+	_ = c
+	// match port in an address that looks like [::]:12345
+	re := regexp.MustCompile(`[\[\]:]+(\d+)`)
+	matches := re.FindStringSubmatch(l.Addr().String())
+	port := matches[1]
+	fmt.Println("port:", port)
+	fmt.Println("raw addr:", l.Addr().String())
+	fmt.Println("matches", matches)
 
+	req, err := http.NewRequest("GET",
+		fmt.Sprintf("https://server2:%s/", port),
+		nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = req
+	resp, err := c.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = resp
+	// if resp.StatusCode != 404 {
+	// 	t.Errorf("expected 404 since we've yet to register our backend")
+	// }
+}
+
+func newProxyTLSConfig(caCert, s1cert, s1key, s2cert, s2key []byte) *tls.Config {
+
+	ca := x509.NewCertPool()
+	ca.AppendCertsFromPEM(caCert)
+	cert1, err := tls.X509KeyPair(s1cert, s1key)
+	if err != nil {
+		panic(err)
+	}
+	cert2, err := tls.X509KeyPair(s2cert, s2key)
+	if err != nil {
+		panic(err)
+	}
+	conf := &tls.Config{
+		RootCAs:      ca,
+		Certificates: []tls.Certificate{cert1, cert2},
+	}
+	// We must do this to create an internal map that the Go TLS
+	// implementation will use to pick the right cert for an
+	// incoming TLS conn. If we do not call this method, the
+	// first certificate is always chosen.
+	conf.BuildNameToCertificate()
+	return conf
 }
 
 func newTestServer(code int, myCert, myPriv, caCert []byte) (*httptest.Server, error) {
@@ -284,6 +339,7 @@ func createCA() ([]byte, []byte, error) {
 		return nil, nil, fmt.Errorf("failed to generate serial number: %s", err)
 	}
 	template := x509.Certificate{
+		IsCA:         true,         // true, else we fail at runtime :(
 		SerialNumber: serialNumber, // big.Int
 		Subject: pkix.Name{
 			CommonName:   "Test Org CA",
