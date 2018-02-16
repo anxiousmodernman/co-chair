@@ -103,7 +103,10 @@ func (p *Proxy) Put(ctx context.Context, b *server.Backend) (*server.OpResult, e
 	if b.BackendCert != nil {
 		bd.BackendCert = b.BackendCert.Cert
 		bd.BackendKey = b.BackendCert.Key
-	} else {
+	}
+
+	// Possible feature: generate BackendCerts if blank?
+	if false {
 		// generate cert
 		c := csr.New()
 		rootCACert, csrPEM, rootCAKey, err := initca.New(c)
