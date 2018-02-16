@@ -169,21 +169,13 @@ func (f *TCPForwarder) handleConn(ctx context.Context, conn net.Conn) {
 	err = f.DB.One("Domain", host, &bd)
 	if err != nil {
 		if err == storm.ErrNotFound {
-			fmt.Println("NOT FOUND", err)
-			tlsconn, ok := conn.(*tls.Conn)
-			if ok {
-				fmt.Println("we are tls")
-				tlsconn.Write([]byte("HTTP/2.0 404 Not Found\r\n\r\n\r\n"))
-			} else {
-				conn.Write([]byte("HTTP/2.0 404 Not Found\r\n"))
-			}
-
+			// This should never happen, since our GetCertificate implemenation
+			// has already performed this exact query, but hey.
 			f.logger.Debug("backend not found: ", host)
 			conn.Close()
 			return
 		}
 		f.logger.Error(err)
-		fmt.Println("ERROR", err)
 		conn.Close()
 		return
 	}

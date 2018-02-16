@@ -58,11 +58,23 @@ func TestTCPProxyForwarder(t *testing.T) {
 	s2.StartTLS()
 	defer s2.Close()
 
-	proxyTLSConf := newProxyTLSConfig(ca, s1Cert, s1Key, s2Cert, s2Key)
+	// Wacky setup because we need the GetCertificate method implementation
+	// on fwd, our pointer receiver.
+	fwd, err := NewTCPForwarder(
+		WithDB(svr.DB),
+		WithLogger(logrus.New()),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var proxyTLSConf tls.Config
+	proxyTLSConf.GetCertificate = fwd.GetCertificate
+	// proxyTLSConf := newProxyTLSConfig(ca, s1Cert, s1Key, s2Cert, s2Key)
 
-	l, _ := tls.Listen("tcp", "0.0.0.0:0", proxyTLSConf)
+	l, _ := tls.Listen("tcp", "0.0.0.0:0", &proxyTLSConf)
+	fwd.L = l
 
-	fwd := NewTCPForwarderFromGRPCClient(l, pc, svr.DB, logrus.New())
+	// fwd := NewTCPForwarderFromGRPCClient(l, pc, svr.DB, logrus.New())
 	go fwd.Start()
 	defer fwd.Stop()
 
@@ -76,19 +88,12 @@ func TestTCPProxyForwarder(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	resp, err := c.Do(req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if resp.StatusCode != 404 {
-		t.Errorf("expected 404 since we've yet to register our backend")
-	}
 	b := makeBackend("server2", s2.Listener.Addr().String(), s2Cert, s2Key)
 	_, err = pc.Put(context.TODO(), b)
 	if err != nil {
 		t.Fatalf("could not add backend with grpc: %v", err)
 	}
-	resp, err = c.Do(req)
+	resp, err := c.Do(req)
 	if err != nil {
 		t.Fatal(err)
 	}
