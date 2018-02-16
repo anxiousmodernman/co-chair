@@ -1,12 +1,10 @@
 package backend
 
 import (
-	"bytes"
 	"context"
 	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
-	"encoding/json"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -19,25 +17,21 @@ import (
 	"github.com/anxiousmodernman/co-chair/proto/server"
 	"github.com/asdine/storm"
 	"github.com/sirupsen/logrus"
-	"github.com/vulcand/oxy/forward"
-	"github.com/vulcand/oxy/testutils"
 	"github.com/vulcand/oxy/trace"
-	"google.golang.org/grpc"
 )
 
 // NewTCPForwarder ...
-func NewTCPForwarder(certPath, keyPath, port string) (net.Listener, error) {
-	cert, err := tls.LoadX509KeyPair(certPath, keyPath)
-	if err != nil {
-		return nil, err
+func NewTCPForwarder(opts ...Opt) (*TCPForwarder, error) {
+
+	var fwdr TCPForwarder
+	for _, opt := range opts {
+		opt(&fwdr)
 	}
 
-	conf := tls.Config{Certificates: []tls.Certificate{cert}}
-	addr := fmt.Sprintf("0.0.0.0:%s", port)
-	return tls.Listen("tcp", addr, &conf)
+	return &fwdr, nil
 }
 
-// An Opt lets us set values on a fwdConf.
+// An Opt lets us set values on a TCPForwarder.
 type Opt func(*TCPForwarder)
 
 // WithDBPath opens a DB at path and sets it on our TCPForwarder.
@@ -48,6 +42,21 @@ func WithDBPath(path string) Opt {
 			panic(err)
 		}
 		fwdr.DB = db
+	}
+}
+
+// WithDB sets a *storm.DB directly on our TCPForwarder.
+func WithDB(db *storm.DB) Opt {
+	return func(fwdr *TCPForwarder) {
+		fwdr.DB = db
+	}
+}
+
+// WithAddr sets the ip:port our TCPForwarder will listen on. Has
+// no effect if used in conjunction with WithListener.
+func WithAddr(addr string) Opt {
+	return func(fwdr *TCPForwarder) {
+		fwdr.Addr = addr
 	}
 }
 
@@ -78,10 +87,42 @@ type TCPForwarder struct {
 	L      net.Listener
 	logger *logrus.Logger
 	DB     *storm.DB
+	Addr   string
+}
+
+// GetCertificate fetches tls.Certificate from the database for
+// each connection. This lets us dynamically fetch certs.
+func (f *TCPForwarder) GetCertificate(hi *tls.ClientHelloInfo) (*tls.Certificate, error) {
+	host := hi.ServerName
+	var bd BackendData
+	err := f.DB.One("Domain", host, &bd)
+	if err != nil {
+		if err == storm.ErrNotFound {
+			return nil, fmt.Errorf("%s no found", host)
+		}
+		f.logger.Error(err)
+		return nil, err
+	}
+
+	cert, err := tls.X509KeyPair(bd.BackendCert, bd.BackendKey)
+	return &cert, err
 }
 
 // Start accepts TCP connections.
 func (f *TCPForwarder) Start() error {
+	if f.DB == nil {
+		return errors.New("database is nil")
+	}
+	// If we did not have a listener set directly, spin one up
+	if f.L == nil {
+		var tlsConf tls.Config
+		tlsConf.GetCertificate = f.GetCertificate
+		lis, err := tls.Listen("tcp", f.Addr, &tlsConf)
+		if err != nil {
+			return err
+		}
+		f.L = lis
+	}
 	go func() {
 		for {
 			conn, err := f.L.Accept()
@@ -121,10 +162,6 @@ func (f *TCPForwarder) handleConn(ctx context.Context, conn net.Conn) {
 		if strings.HasPrefix(line, "Host:") {
 			host = strings.TrimSpace(strings.Split(line, ":")[1])
 		}
-	}
-	fmt.Println("time for a lookup")
-	if f.DB == nil {
-		fmt.Println("DB IS NIL")
 	}
 
 	// look up the domain in the db
@@ -240,142 +277,142 @@ func NewTCPForwarderFromGRPCClient(l net.Listener, pc server.ProxyClient, db *st
 	}
 }
 
-// ProxyForwarder is our type that actually handles connections from the
-// internet that want to proxy to services behind co-chair.
-type ProxyForwarder struct {
-	fwd         *forward.Forwarder
-	logger      *logrus.Logger
-	metrics     chan *bytes.Buffer
-	metricsStop chan bool
-	// ProxyClient is a generated gRPC interface
-	c server.ProxyClient
-}
+// // ProxyForwarder is our type that actually handles connections from the
+// // internet that want to proxy to services behind co-chair.
+// type ProxyForwarder struct {
+// 	fwd         *forward.Forwarder
+// 	logger      *logrus.Logger
+// 	metrics     chan *bytes.Buffer
+// 	metricsStop chan bool
+// 	// ProxyClient is a generated gRPC interface
+// 	c server.ProxyClient
+// }
 
-// NewProxyForwarder is our constructor for ProxyForwarder. It needs a client
-// to the grpc API, so that it can inspect the state of the service.
-func NewProxyForwarder(apiAddr string, logger *logrus.Logger) (*ProxyForwarder, error) {
-	var pf ProxyForwarder
-	pf.logger = logger
-	pf.metrics = make(chan *bytes.Buffer, 100)
-	conn, err := grpc.Dial(apiAddr, grpc.WithInsecure(), grpc.WithBlock())
-	if err != nil {
-		return nil, fmt.Errorf("grpc dial: %v", err)
-	}
-	pf.c = server.NewProxyClient(conn)
-	fwd, err := forward.New()
-	if err != nil {
-		return nil, err
-	}
-	pf.fwd = fwd
+// // NewProxyForwarder is our constructor for ProxyForwarder. It needs a client
+// // to the grpc API, so that it can inspect the state of the service.
+// func NewProxyForwarder(apiAddr string, logger *logrus.Logger) (*ProxyForwarder, error) {
+// 	var pf ProxyForwarder
+// 	pf.logger = logger
+// 	pf.metrics = make(chan *bytes.Buffer, 100)
+// 	conn, err := grpc.Dial(apiAddr, grpc.WithInsecure(), grpc.WithBlock())
+// 	if err != nil {
+// 		return nil, fmt.Errorf("grpc dial: %v", err)
+// 	}
+// 	pf.c = server.NewProxyClient(conn)
+// 	fwd, err := forward.New()
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	pf.fwd = fwd
 
-	return &pf, nil
-}
+// 	return &pf, nil
+// }
 
-// NewProxyForwarderFromGRPCClient is a constructor for ProxyForwarder that takes
-// a pre-configured server.ProxyClient as its connection to the management api.
-func NewProxyForwarderFromGRPCClient(pc server.ProxyClient, logger *logrus.Logger) (*ProxyForwarder, error) {
-	var pf ProxyForwarder
-	pf.logger = logger
-	pf.c = pc
-	fwd, err := forward.New()
-	if err != nil {
-		return nil, err
-	}
-	pf.fwd = fwd
-	return &pf, nil
-}
+// // NewProxyForwarderFromGRPCClient is a constructor for ProxyForwarder that takes
+// // a pre-configured server.ProxyClient as its connection to the management api.
+// func NewProxyForwarderFromGRPCClient(pc server.ProxyClient, logger *logrus.Logger) (*ProxyForwarder, error) {
+// 	var pf ProxyForwarder
+// 	pf.logger = logger
+// 	pf.c = pc
+// 	fwd, err := forward.New()
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	pf.fwd = fwd
+// 	return &pf, nil
+// }
 
-// ServeHTTP implements the standard library's http.Handler interface.
-func (pf *ProxyForwarder) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	dom := orElse(r.Host, r.URL.Host)
-	if pf.c == nil {
-		w.WriteHeader(500)
-		w.Write([]byte("client is nil"))
-		return
-	}
+// // ServeHTTP implements the standard library's http.Handler interface.
+// func (pf *ProxyForwarder) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+// 	dom := orElse(r.Host, r.URL.Host)
+// 	if pf.c == nil {
+// 		w.WriteHeader(500)
+// 		w.Write([]byte("client is nil"))
+// 		return
+// 	}
 
-	// Hmm... https://github.com/vulcand/oxy/issues/57#issuecomment-286491548
-	r.URL.Opaque = ""
+// 	// Hmm... https://github.com/vulcand/oxy/issues/57#issuecomment-286491548
+// 	r.URL.Opaque = ""
 
-	splitted := strings.Split(dom, ":")
+// 	splitted := strings.Split(dom, ":")
 
-	req := &server.StateRequest{Domain: splitted[0]}
-	upstreams, err := pf.c.State(context.Background(), req)
-	if err != nil {
-		pf.logger.Errorf("splitted domain: %s db error: %v", splitted, err)
-	}
-	if upstreams != nil {
-		if len(upstreams.Backends) == 1 {
-			if len(upstreams.Backends[0].Ips) == 1 {
-				// we assert exactly one domain -> ip mapping
-				// only because we do not support load balancing yet
-				// Note: field Host must be host or host:port
-				// Also note: merely setting fields on the request is all the oxy
-				// library needs to forward the request.
+// 	req := &server.StateRequest{Domain: splitted[0]}
+// 	upstreams, err := pf.c.State(context.Background(), req)
+// 	if err != nil {
+// 		pf.logger.Errorf("splitted domain: %s db error: %v", splitted, err)
+// 	}
+// 	if upstreams != nil {
+// 		if len(upstreams.Backends) == 1 {
+// 			if len(upstreams.Backends[0].Ips) == 1 {
+// 				// we assert exactly one domain -> ip mapping
+// 				// only because we do not support load balancing yet
+// 				// Note: field Host must be host or host:port
+// 				// Also note: merely setting fields on the request is all the oxy
+// 				// library needs to forward the request.
 
-				//r.URL = testutils.ParseURI(protocolFmt(r) + upstreams.Backends[0].Ips[0])
-				be := upstreams.Backends[0]
-				if r.TLS != nil {
-					r.Header.Set(forward.XForwardedProto, "https")
-				}
-				r.URL = testutils.ParseURI(be.Protocol + be.Ips[0])
-				pf.logger.Infof("proxying %s -> %s", dom, r.Host)
+// 				//r.URL = testutils.ParseURI(protocolFmt(r) + upstreams.Backends[0].Ips[0])
+// 				be := upstreams.Backends[0]
+// 				if r.TLS != nil {
+// 					r.Header.Set(forward.XForwardedProto, "https")
+// 				}
+// 				r.URL = testutils.ParseURI(be.Protocol + be.Ips[0])
+// 				pf.logger.Infof("proxying %s -> %s", dom, r.Host)
 
-				// TODO: re-use a pool of buffers for GC optimization:
-				// https://blog.cloudflare.com/recycling-memory-buffers-in-go/
-				var buf bytes.Buffer
-				tracer, err := trace.New(pf.fwd, &buf)
-				if err != nil {
-					w.WriteHeader(500)
-					w.Write([]byte("could not create metrics middleware"))
-				}
+// 				// TODO: re-use a pool of buffers for GC optimization:
+// 				// https://blog.cloudflare.com/recycling-memory-buffers-in-go/
+// 				var buf bytes.Buffer
+// 				tracer, err := trace.New(pf.fwd, &buf)
+// 				if err != nil {
+// 					w.WriteHeader(500)
+// 					w.Write([]byte("could not create metrics middleware"))
+// 				}
 
-				tracer.ServeHTTP(w, r)
-				// TODO sensible, fast metrics serialization?
-				//go func() {
-				//	pf.metrics <- &buf
-				//}()
-				return
-			}
-		}
-	}
-	w.WriteHeader(http.StatusNotFound)
-	w.Write([]byte(fmt.Sprintf("upstream %s not found", dom)))
-	return
-}
+// 				tracer.ServeHTTP(w, r)
+// 				// TODO sensible, fast metrics serialization?
+// 				//go func() {
+// 				//	pf.metrics <- &buf
+// 				//}()
+// 				return
+// 			}
+// 		}
+// 	}
+// 	w.WriteHeader(http.StatusNotFound)
+// 	w.Write([]byte(fmt.Sprintf("upstream %s not found", dom)))
+// 	return
+// }
 
-// GetConfigForClient ...
-func (pf *ProxyForwarder) GetConfigForClient(hello *tls.ClientHelloInfo) (*tls.Config, error) {
-	cert, err := pf.GetCertificate(hello)
-	if err != nil {
-		return nil, err
-	}
-	var conf tls.Config
-	conf.Certificates = []tls.Certificate{*cert}
-	return &conf, nil
-}
+// // GetConfigForClient ...
+// func (pf *ProxyForwarder) GetConfigForClient(hello *tls.ClientHelloInfo) (*tls.Config, error) {
+// 	cert, err := pf.GetCertificate(hello)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	var conf tls.Config
+// 	conf.Certificates = []tls.Certificate{*cert}
+// 	return &conf, nil
+// }
 
-// GetCertificate ...
-func (pf *ProxyForwarder) GetCertificate(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {
+// // GetCertificate ...
+// func (pf *ProxyForwarder) GetCertificate(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {
 
-	fmt.Println("hello", hello.ServerName)
+// 	fmt.Println("hello", hello.ServerName)
 
-	priv, err := privateKeyFromFile("/opt/pki/dev_key.pem")
-	if err != nil {
-		return nil, err
-	}
-	crt, x509cert, err := certFromFile("/opt/pki/dev_cert.pem")
-	if err != nil {
-		return nil, err
-	}
+// 	priv, err := privateKeyFromFile("/opt/pki/dev_key.pem")
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	crt, x509cert, err := certFromFile("/opt/pki/dev_cert.pem")
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-	cert := &tls.Certificate{
-		PrivateKey:  priv,
-		Certificate: crt,
-		Leaf:        x509cert,
-	}
-	return cert, nil
-}
+// 	cert := &tls.Certificate{
+// 		PrivateKey:  priv,
+// 		Certificate: crt,
+// 		Leaf:        x509cert,
+// 	}
+// 	return cert, nil
+// }
 
 func certFromFile(path string) ([][]byte, *x509.Certificate, error) {
 	data, err := ioutil.ReadFile(path)
@@ -404,38 +441,38 @@ func privateKeyFromFile(path string) (*rsa.PrivateKey, error) {
 	return x509.ParsePKCS1PrivateKey(priv.Bytes)
 }
 
-func (pf *ProxyForwarder) startMetricsListener() {
+// func (pf *ProxyForwarder) startMetricsListener() {
 
-	go func() {
-		// let's tempt fate with a long-lived stream to the grpc server.
-		stream, err := pf.c.PutKVStream(context.TODO())
-		if err != nil {
-			pf.logger.Errorf("PutKVStream: %v", err)
-			return
-		}
-		for {
-			select {
-			case m := <-pf.metrics:
-				var k, v []byte
-				_ = k
-				// deserialize m to review timestamp
-				var record TimedRecord
-				err = json.Unmarshal(m.Bytes(), &record)
-				if err != nil {
-					pf.logger.Errorf("malformed trace record: %v", err)
-					continue
-				}
+// 	go func() {
+// 		// let's tempt fate with a long-lived stream to the grpc server.
+// 		stream, err := pf.c.PutKVStream(context.TODO())
+// 		if err != nil {
+// 			pf.logger.Errorf("PutKVStream: %v", err)
+// 			return
+// 		}
+// 		for {
+// 			select {
+// 			case m := <-pf.metrics:
+// 				var k, v []byte
+// 				_ = k
+// 				// deserialize m to review timestamp
+// 				var record TimedRecord
+// 				err = json.Unmarshal(m.Bytes(), &record)
+// 				if err != nil {
+// 					pf.logger.Errorf("malformed trace record: %v", err)
+// 					continue
+// 				}
 
-				// TODO some inefficient re-serialization going on here.
+// 				// TODO some inefficient re-serialization going on here.
 
-				kv := server.KV{Key: record.TS, Value: v}
-				stream.Send(&kv)
-			case <-pf.metricsStop:
-				return
-			}
-		}
-	}()
-}
+// 				kv := server.KV{Key: record.TS, Value: v}
+// 				stream.Send(&kv)
+// 			case <-pf.metricsStop:
+// 				return
+// 			}
+// 		}
+// 	}()
+// }
 
 type TimedRecord struct {
 	TS   []byte
