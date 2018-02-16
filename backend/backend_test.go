@@ -61,7 +61,7 @@ func TestProxy(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Logf("response", resp)
+	t.Logf("response: %v", resp)
 	if len(resp.Backends) != 0 {
 		t.Errorf("expected zero backends")
 	}
