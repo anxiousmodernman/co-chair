@@ -1,7 +1,7 @@
 # co-chair
 
 A configurable edge proxy that also does auth. The aim is to provide a 
-single-node proxy, configurable via a UI or api. 
+single-node proxy, configurable via a UI or grpc api. 
 
 ## Getting started with development
 
@@ -11,7 +11,7 @@ You will need
 * protoc
 * a few go tools: dep and gopherjs
 
-Installing `protoc` is similar. [Download a zip file for your distribution](https://github.com/google/protobuf/releases), 
+Installing `protoc` on Linux: [Download a zip file for your distribution](https://github.com/google/protobuf/releases), 
 expand it somewhere on your system that's a part of your C/C++ "includes" path.
 The protoc zip file has the `protoc` compiler binary as well as some required 
 libraries that the compiler will need to include at build time. 
@@ -30,7 +30,7 @@ dep works, the Makefile takes us the last mile.
 make install
 make generate
 make generate_cert
-make serve
+make serve-no-auth
 ```
 
 ## Running tests
