@@ -89,41 +89,43 @@ func (s Secret) String() string {
 // ExampleConfig can be written to disk. See the systemd-install command.
 var ExampleConfig = `
 
-	# Filepath to the boltdb file.
-	db_path = ""
+# Example co-chair TOML config
 
-	# Paths to PEM-encoded TLS assets
-	# for our pure gRPC api
-	api_cert = ""
-	api_key = ""
-	api_port = "1917"
+# Filepath to the boltdb file.
+db_path = ""
 
-	# webui_cert and webui_key are paths to PEM-encoded TLS assets
-	# for our GopherJS-over-websockets UI. This UI is wrapped with
-	# auth0 handlers.
-	webui_cert = ""
-	webui_key = ""
+# Paths to PEM-encoded TLS assets
+# for our pure gRPC api
+api_cert = ""
+api_key = ""
+api_port = "1917"
 
-	# webui_domain is our fully-qualified domain name; note that
-	# "localhost" is only suitable for local development. If you
-	# want this co-chair instance to serve clients on the internet,
-	# the domain provided here needs to be in the public DNS.
-	webui_domain = "localhost"
-	webui_port = "2016"
+# webui_cert and webui_key are paths to PEM-encoded TLS assets
+# for our GopherJS-over-websockets UI. This UI is wrapped with
+# auth0 handlers.
+webui_cert = ""
+webui_key = ""
+
+# webui_domain is our fully-qualified domain name; note that
+# "localhost" is only suitable for local development. If you
+# want this co-chair instance to serve clients on the internet,
+# the domain provided here needs to be in the public DNS.
+webui_domain = "localhost"
+webui_port = "2016"
 
 
-	# ProxyCert and  are paths to PEM-encoded TLS assets
-	# for our GopherJS-over-websockets UI. This UI is wrapped with
-	# auth0 handlers.
-	proxy_cert = ""
-	proxy_key = ""
-	proxy_port = "443"
+# ProxyCert and  are paths to PEM-encoded TLS assets
+# for our GopherJS-over-websockets UI. This UI is wrapped with
+# auth0 handlers.
+proxy_cert = ""
+proxy_key = ""
+proxy_port = "443"
 
-	# Auth0 config values
-	auth0_client_id = ""
-	auth0_secret = ""
-	auth0_domain = ""
-	bypass_auth0 = false
+# Auth0 config values
+auth0_client_id = ""
+auth0_secret = ""
+auth0_domain = ""
+bypass_auth0 = false
 
 `
 
