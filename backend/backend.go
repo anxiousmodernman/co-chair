@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
-	"errors"
 	"fmt"
 	"io"
 	"sort"
@@ -92,7 +91,7 @@ func (p *Proxy) Put(ctx context.Context, b *server.Backend) (*server.OpResult, e
 		if err == storm.ErrNotFound {
 			// do nothing, so always overwrite the BackendData
 		} else {
-			return &server.OpResult{}, errors.New("")
+			return &server.OpResult{}, fmt.Errorf("domain lookup: %v", err)
 		}
 	}
 

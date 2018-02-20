@@ -1,8 +1,6 @@
 package components
 
 import (
-	"log"
-
 	"github.com/anxiousmodernman/co-chair/frontend/api"
 	"github.com/anxiousmodernman/co-chair/frontend/store"
 	"github.com/anxiousmodernman/co-chair/frontend/styles"
@@ -17,6 +15,7 @@ import (
 type EditProxyForm struct {
 	vecty.Core
 	Domain, IP, Protocol string
+	Cert, Key            []byte
 }
 
 // Render ...
@@ -26,6 +25,8 @@ func (e *EditProxyForm) Render() vecty.ComponentOrHTML {
 	cb1 := func(val string) { e.Domain = val }
 	cb2 := func(val string) { e.IP = val }
 	cb3 := func(val string) { e.Protocol = val }
+	cb4 := func(val string) { e.Cert = []byte(val) }
+	cb5 := func(val string) { e.Key = []byte(val) }
 
 	buttonStyle := styles.NewCSS("margin", "5px")
 	click := event.Click(e.addProxy)
@@ -33,8 +34,9 @@ func (e *EditProxyForm) Render() vecty.ComponentOrHTML {
 	return elem.Div(styles.ProxyForm().Yield(),
 		&LabeledInput{Label: "domain", cb: cb1},
 		&LabeledInput{Label: "ip:port", cb: cb2},
-		&LabeledInput{Label: "health check"},
 		&LabeledInput{Label: "protocol prefix", cb: cb3},
+		&LabeledInput{Label: "cert", TextArea: true, cb: cb4},
+		&LabeledInput{Label: "key", TextArea: true, cb: cb5},
 		elem.Button(
 			buttonStyle.Yield(),
 			vecty.Text("Add Proxy"), vecty.Markup(click)),
@@ -46,7 +48,9 @@ func (e *EditProxyForm) addProxy(ev *vecty.Event) {
 	b.Domain = e.Domain
 	b.Ips = []string{e.IP}
 	b.Protocol = e.Protocol
-	log.Println("put backend", b)
+	b.BackendCert = &client.X509Cert{
+		Cert: e.Cert, Key: e.Key,
+	}
 	api.PutBackend(store.S, api.Client, &b)
 }
 
@@ -56,6 +60,8 @@ type LabeledInput struct {
 	cb    func(string)
 	Label string
 	Val   string
+	// if true, this is a text area
+	TextArea bool
 }
 
 // Render ...
@@ -65,13 +71,21 @@ func (l *LabeledInput) Render() vecty.ComponentOrHTML {
 		"display", "grid",
 		"grid-template-rows", "33% 67%",
 	)
-	// surrounding div takes the grid css of parent. Our label and input
-	// will be stacked vertically.
+	// surrounding div takes the grid css of parent
+	input := func() *vecty.HTML {
+		if l.TextArea {
+			return elem.TextArea(vecty.Markup(
+				prop.Value(l.Val),
+				event.Input(l.onInput)))
+		}
+		return elem.Input(vecty.Markup(
+			prop.Value(l.Val),
+			event.Input(l.onInput)))
+	}()
+
 	return elem.Div(
 		elem.Label(vecty.Text(l.Label),
-			elem.Input(vecty.Markup(
-				prop.Value(l.Val),
-				event.Input(l.onInput)))),
+			input),
 		c.Yield(),
 	)
 }
