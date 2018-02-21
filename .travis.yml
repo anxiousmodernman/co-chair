@@ -1,0 +1,28 @@
+language: go
+go:
+    - 1.10
+#cache: cargo
+#script:
+#    - cargo build --verbose --all
+#    - cargo test
+#
+#test:
+#  script:
+#    - echo "127.0.0.1    server1 server2 server3" >> /etc/hosts # for tests
+#    - apk add --update make wget unzip protobuf git bash
+#    - mkdir -p /go/src/gitlab.com/DSASanFrancisco/
+#    - protoc --version
+#    - go get -u github.com/golang/dep/cmd/dep
+#    - cd ..
+#    - cp -r co-chair /go/src/gitlab.com/DSASanFrancisco/ # must have slash
+#    - cd /tmp 
+#    - mkdir protobuf
+#    - wget -P /tmp/protobuf https://github.com/google/protobuf/releases/download/v3.5.0/protoc-3.5.0-linux-x86_64.zip 
+#    - cd protobuf
+#    - unzip protoc-3.5.0-linux-x86_64.zip
+#    - cd ${PROJECT} && dep ensure
+#    - cd ${PROJECT} && make install
+#    - cd ${PROJECT} && make generate
+#    - cd ${PROJECT} && make generate_cert
+#    - cd ${PROJECT} && make test
+
