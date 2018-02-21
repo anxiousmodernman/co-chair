@@ -1,5 +1,7 @@
 # co-chair
 
+[![Build Status](https://travis-ci.org/anxiousmodernman/co-chair.svg?branch=master)](https://travis-ci.org/anxiousmodernman/co-chair)
+
 A configurable tcp proxy.
 
 ## Overview
