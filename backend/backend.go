@@ -74,7 +74,6 @@ func (p *Proxy) State(_ context.Context, req *server.StateRequest) (*server.Prox
 		return nil, fmt.Errorf("domain: %s; db error: %v", req.Domain, err)
 	}
 	for _, b := range backends {
-		fmt.Println("backend:", *b)
 		// do not leak private keys here
 		resp.Backends = append(resp.Backends, b.AsBackend())
 	}
