@@ -38,6 +38,12 @@
   version = "v2.0.0"
 
 [[projects]]
+  name = "github.com/cloudflare/cfssl"
+  packages = ["api","api/client","auth","certdb","cli","cli/genkey","config","crypto/pkcs7","csr","errors","helpers","helpers/derhelpers","info","initca","log","ocsp/config","signer","signer/local","signer/remote","signer/universal"]
+  revision = "27b05afbb5132883b0942e87e3dd53d194aaa2f5"
+  version = "1.3.0"
+
+[[projects]]
   name = "github.com/codegangsta/negroni"
   packages = ["."]
   revision = "5dbbc83f748fc3ad38585842b0aedab546d0ea1e"
@@ -51,9 +57,27 @@
 
 [[projects]]
   branch = "master"
+  name = "github.com/dchest/uniuri"
+  packages = ["."]
+  revision = "8902c56451e9b58ff940bbe5fec35d5f9c04584a"
+
+[[projects]]
+  name = "github.com/gogo/protobuf"
+  packages = ["proto"]
+  revision = "1adfc126b41513cc696b209667c8656ea7aac67c"
+  version = "v1.0.0"
+
+[[projects]]
+  branch = "master"
   name = "github.com/golang/protobuf"
   packages = ["proto","protoc-gen-go","protoc-gen-go/descriptor","protoc-gen-go/generator","protoc-gen-go/grpc","protoc-gen-go/plugin","ptypes","ptypes/any","ptypes/duration","ptypes/timestamp"]
   revision = "1e59b77b52bf8e4b449a57e6f79f21226d571845"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/google/certificate-transparency-go"
+  packages = [".","asn1","client","client/configpb","jsonclient","tls","x509","x509/pkix"]
+  revision = "92268ecacdbdbe087fc6de47fe9bdb04a61f9e67"
 
 [[projects]]
   branch = "master"
@@ -142,13 +166,13 @@
 [[projects]]
   branch = "master"
   name = "github.com/vulcand/oxy"
-  packages = ["forward","testutils","trace","utils"]
+  packages = ["trace","utils"]
   revision = "ad9ad6c09ee1f5d719224170baf8114e0810998a"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/crypto"
-  packages = ["curve25519","nacl/box","nacl/secretbox","poly1305","salsa20/salsa","ssh/terminal"]
+  packages = ["cryptobyte","cryptobyte/asn1","curve25519","nacl/box","nacl/secretbox","ocsp","pkcs12","pkcs12/internal/rc2","poly1305","salsa20/salsa","ssh/terminal"]
   revision = "9f005a07e0d31d45e6656d241bb5c0f2efd4bc94"
 
 [[projects]]
@@ -202,6 +226,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "2d7dff7d7ff0075917b1418ad096f93df5c43b3a537b20f3c79f8aeaf37ddbe8"
+  inputs-digest = "6575aa3c86ad374a3c22995da38cbe6f3c5f1526f1acdeb68964e33f93f29f92"
   solver-name = "gps-cdcl"
   solver-version = 1
