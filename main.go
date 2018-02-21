@@ -108,7 +108,6 @@ func main() {
 	apiPort := cli.StringFlag{
 		Name:  "apiPort",
 		Usage: "port number for grpc mgmt api",
-		Value: "1917",
 	}
 
 	webCert := cli.StringFlag{

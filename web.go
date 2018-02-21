@@ -11,10 +11,10 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/codegangsta/negroni"
-	"github.com/gorilla/websocket"
 	"github.com/anxiousmodernman/co-chair/config"
 	"github.com/anxiousmodernman/co-chair/frontend/bundle"
+	"github.com/codegangsta/negroni"
+	"github.com/gorilla/websocket"
 	"golang.org/x/oauth2"
 )
 
@@ -187,7 +187,6 @@ func oauthCallbackHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
 	defer resp.Body.Close()
 
 	var profile map[string]interface{}

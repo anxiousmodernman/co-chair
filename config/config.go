@@ -79,13 +79,6 @@ type Config struct {
 	BypassAuth0   bool   `toml:"bypass_auth0"`
 }
 
-// Secret is our string that won't print itself.
-type Secret string
-
-func (s Secret) String() string {
-	return "<redacted>"
-}
-
 // ExampleConfig can be written to disk. See the systemd-install command.
 var ExampleConfig = `
 
