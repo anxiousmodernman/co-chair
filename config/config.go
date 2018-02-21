@@ -98,7 +98,7 @@ db_path = ""
 # for our pure gRPC api
 api_cert = ""
 api_key = ""
-api_port = "1917"
+api_port = ""
 
 # webui_cert and webui_key are paths to PEM-encoded TLS assets
 # for our GopherJS-over-websockets UI. This UI is wrapped with
