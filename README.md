@@ -1,7 +1,6 @@
 # co-chair
 
-A configurable edge proxy that also does auth. The aim is to provide a 
-single-node TLS proxy, configurable via a UI or grpc api. 
+A configurable tcp proxy.
 
 ## Overview
 
@@ -24,6 +23,8 @@ I wrote co-chair to see if I could build a dynamic proxy that didn't require
 running a complex service discovery system or Kubernetes. Traefik was an 
 inspiration, but I'm trying to build something even simpler.
 
+Right now, you'll need an Auth0 account to use the WebUI.
+
 ## Getting started with development
 
 You will need
@@ -42,21 +43,17 @@ Installing `protoc` on MacOS: `brew install protoc`.
 Install Go by downloading the appropriate tarball or installer for your system
 [here](https://golang.org/).
 
-Get `dep`, with `go get`.
+Install `dep`, with `go get`.
 
 ```
 go get -u github.com/golang/dep/cmd/dep  # installs to $GOPATH/bin
 dep ensure  # takes a few minutes; clones stuff to vendor/ dir 
 ```
 
-If that all those baseline tools are installed, and fetching dependencies with 
-dep works, the Makefile takes us the last mile.
+Install the other dependencies with our provided script
 
 ```
-make install
-make generate
-make generate_cert
-make serve-no-auth
+./install.sh
 ```
 
 ## Running tests
@@ -71,6 +68,6 @@ line to give us 3 additional aliases to lochalhost.
 Then run tests with
 
 ```
-make test
+go test ./...
 ```
 
