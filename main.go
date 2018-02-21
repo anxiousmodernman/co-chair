@@ -40,14 +40,16 @@ var Version = "0.1.0"
 var (
 	// Store is our sessions store.
 	// TODO: this doesn't have to be a global
-	Store *sessions.CookieStore
+	Store  *sessions.CookieStore
+	logger *logrus.Logger
 )
 
-var logger *logrus.Logger
-
 func init() {
-	// TODO make this more secrety
-	Store = sessions.NewCookieStore([]byte(uniuri.NewLen(64)))
+	secret := os.Getenv("COCHAIR_COOKIESTORE_SECRET")
+	if secret == "" {
+		secret = uniuri.NewLen(64)
+	}
+	Store = sessions.NewCookieStore([]byte(secret))
 	logger = logrus.StandardLogger()
 	logrus.SetLevel(logrus.DebugLevel)
 	logrus.SetFormatter(&logrus.TextFormatter{
@@ -61,9 +63,9 @@ func init() {
 	grpclog.SetLoggerV2(grpclog.NewLoggerV2(logger.Out, logger.Out, logger.Out))
 
 	// set up sessions store
-	store := sessions.NewFilesystemStore(os.TempDir(), []byte("secret-here?"))
+	store := sessions.NewFilesystemStore(os.TempDir(), []byte(secret))
 	store.MaxLength(math.MaxInt64)
-	gothic.Store = store
+	gothic.Store = store // TODO remove?
 
 	// prevent error:
 	// gob: type not registered for interface: map[string]interface {}
