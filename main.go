@@ -424,7 +424,7 @@ func run(conf config.Config) error {
 	if conf.ProxyInsecurePort != "" {
 		// should we even support this?
 	}
-	// block
+
 	for {
 		select {
 		case err := <-grpcAPI:
@@ -435,48 +435,6 @@ func run(conf config.Config) error {
 			return err
 		}
 	}
-
-}
-
-func (t *Tunnel) pipe(src, dst net.Conn, dir string) {
-
-	buff := make([]byte, 0xffff)
-	for {
-		if t.ErrorState != nil {
-			return
-		}
-		n, err := src.Read(buff)
-		if err != nil {
-			logger.Errorf("read failed %v", err)
-			t.err(err)
-			return
-		}
-		b := buff[:n]
-
-		debg := true
-		if debg {
-			logger.Debugf("bufff %s %s", dir, string(b))
-		}
-
-		n, err = dst.Write(b)
-		if err != nil {
-			logger.Errorf("write failed %v", err)
-			t.err(err)
-			return
-		}
-	}
-}
-
-type Tunnel struct {
-	ServerConn  net.Conn
-	BackendConn net.Conn
-	ErrorState  error
-	ErrorSig    chan error
-}
-
-func (t *Tunnel) err(err error) {
-	t.ErrorState = err
-	t.ErrorSig <- err
 }
 
 func genClientKeypair(name, dbPath string) error {
