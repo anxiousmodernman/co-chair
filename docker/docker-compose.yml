@@ -1,0 +1,14 @@
+
+version: "3"
+
+services:
+    upstream1:
+        image: abiosoft/caddy
+        volumes:
+            - ./static/upstream1/etc:/etc
+        ports:
+            - "2181:2181"
+            - "9092:9092"
+        environment:
+            - FOO=BAZ
+
