@@ -152,7 +152,7 @@ func (p *Proxy) Put(ctx context.Context, b *server.Backend) (*server.OpResult, e
 		return nil, fmt.Errorf("save: %v", err)
 	}
 
-	resp := &server.OpResult{200, "Ok"}
+	resp := &server.OpResult{Code: 200, Status: "Ok"}
 
 	return resp, nil
 }
@@ -219,7 +219,7 @@ func combine(a, b []string) []string {
 	return res
 }
 
-// Remove ... TODO
+// Remove ...
 func (p *Proxy) Remove(_ context.Context, b *server.Backend) (*server.OpResult, error) {
 	// match on domain name exactly
 	var bd BackendData
