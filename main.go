@@ -31,6 +31,7 @@ import (
 	"github.com/anxiousmodernman/co-chair/config"
 	"github.com/anxiousmodernman/co-chair/grpcclient"
 	"github.com/anxiousmodernman/co-chair/proto/server"
+	"github.com/dchest/uniuri"
 )
 
 // Version is our software version.
@@ -38,6 +39,7 @@ var Version = "0.1.0"
 
 var (
 	// Store is our sessions store.
+	// TODO: this doesn't have to be a global
 	Store *sessions.CookieStore
 )
 
@@ -45,7 +47,7 @@ var logger *logrus.Logger
 
 func init() {
 	// TODO make this more secrety
-	Store = sessions.NewCookieStore([]byte("something-very-secret"))
+	Store = sessions.NewCookieStore([]byte(uniuri.NewLen(64)))
 	logger = logrus.StandardLogger()
 	logrus.SetLevel(logrus.DebugLevel)
 	logrus.SetFormatter(&logrus.TextFormatter{
