@@ -14,4 +14,4 @@ protoc -I. -I/tmp/protobuf/include -Ivendor/ ./proto/web.proto \
 echo "go generate..."
 go generate ./frontend/
 
-go build -race
+go build 
