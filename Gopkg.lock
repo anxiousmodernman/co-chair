@@ -14,9 +14,10 @@
   version = "v1.1.0"
 
 [[projects]]
+  branch = "grpc_credentials"
   name = "github.com/Rudd-O/curvetls"
   packages = ["."]
-  revision = "fd97be7e75a6424043a9c07ade30938656132f52"
+  revision = "c28a1e3ee744ad096dc7b06b8f19be7541ee8f82"
   source = "github.com/anxiousmodernman/curvetls"
 
 [[projects]]
@@ -226,6 +227,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "6575aa3c86ad374a3c22995da38cbe6f3c5f1526f1acdeb68964e33f93f29f92"
+  inputs-digest = "7ec2bbf63d1673d32ef82636fe05d50466cdf0cff7b41e92a52f91cc5f0b7f67"
   solver-name = "gps-cdcl"
   solver-version = 1
