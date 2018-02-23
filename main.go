@@ -198,6 +198,14 @@ func main() {
 	)
 	app.Commands = []cli.Command{
 		cli.Command{
+			Name:  "example-config",
+			Usage: "print an example co-chair TOML config to stdout",
+			Action: func(_ *cli.Context) error {
+				fmt.Println(config.ExampleConfig)
+				return nil
+			},
+		},
+		cli.Command{
 			Name:  "gen-client-keys",
 			Usage: "generate a (curvetls) client keypair and add public key to the keystore; co-chair cannot be running",
 			Flags: []cli.Flag{conf, dbFlag},
