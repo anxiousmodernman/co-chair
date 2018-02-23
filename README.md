@@ -58,6 +58,23 @@ Install the other dependencies with our provided script
 ./install.sh
 ```
 
+If all is well, build with
+
+```
+./build.sh
+```
+
+This will drop a `co-chair` binary. Run in development mode
+
+```
+./generate-cert.sh   # only need to do this once
+./co-chair serve --bypassAuth0
+```
+
+Then visit https://localhost:2016 to see the management UI, which is normally 
+behind an Auth0 login. Development certs and a development BoltDB instance
+will be created in the directory where co-chair is run. 
+
 ## Running tests
 
 Running tests requires modifications to **/etc/hosts**. Please add the following
@@ -72,7 +89,6 @@ Then run tests with
 ```
 go test ./...
 ```
-
 
 ## License
 
