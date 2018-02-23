@@ -1,0 +1,11 @@
+# For co-chair container-to-container proxying
+http://upstream1 {
+    root /static
+    tls off
+}
+
+# For external localhost debugging
+http://localhost {
+    root /static
+    tls off
+}

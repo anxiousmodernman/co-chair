@@ -2,13 +2,18 @@
 version: "3"
 
 services:
+    cochair:
+        image: anxiousmodernman/co-chair:latest
+        volumes:
+            - ./mnt/co-chair:/opt/co-chair
+
     upstream1:
         image: abiosoft/caddy
         volumes:
-            - ./static/upstream1/etc:/etc
+            - ./mnt/upstream1/etc:/etc
+            - ./mnt/upstream1/static:/static
         ports:
-            - "2181:2181"
-            - "9092:9092"
+            - "8888:80"
         environment:
             - FOO=BAZ
 
