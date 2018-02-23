@@ -2,6 +2,11 @@
 version: "3"
 
 services:
+    cochair:
+        image: anxiousmodernman/co-chair:latest
+        volumes:
+            - ./mnt/co-chair:/opt/co-chair
+
     upstream1:
         image: abiosoft/caddy
         volumes:

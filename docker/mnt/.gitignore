@@ -1,0 +1,4 @@
+# ignore stuff that stupid docker mounts put in our repo 
+hosts
+hostname
+resolv.conf
