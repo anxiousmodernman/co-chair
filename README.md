@@ -45,10 +45,12 @@ Installing `protoc` on MacOS: `brew install protoc`.
 Install Go by downloading the appropriate tarball or installer for your system
 [here](https://golang.org/).
 
-Install `dep`, with `go get`.
+Install a release version of `dep`, according to their [instructions](). 
+
+Then use dep to get Go dependencies.
 
 ```
-go get -u github.com/golang/dep/cmd/dep  # installs to $GOPATH/bin
+curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
 dep ensure  # takes a few minutes; clones stuff to vendor/ dir 
 ```
 
