@@ -62,3 +62,11 @@ required = [
   name = "github.com/Rudd-O/curvetls"
   source = "github.com/anxiousmodernman/curvetls"
   branch = "grpc_credentials"
+
+[[constraint]]
+  name = "github.com/soheilhy/cmux"
+  version = "0.1.4"
+
+[[constraint]]
+  name = "github.com/anxiousmodernman/localserver"
+  version = "1.0.0"

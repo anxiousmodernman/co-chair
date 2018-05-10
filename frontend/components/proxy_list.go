@@ -41,7 +41,7 @@ func (bl *BackendList) Render() vecty.ComponentOrHTML {
 			if len(b.Ips) == 0 {
 				continue
 			}
-			bi := BackendItem{Domain: b.Domain, IP: b.Ips[0], Protocol: b.Protocol} // only single ip for now
+			bi := BackendItem{Domain: b.Domain, IP: b.Ips[0]} // only single ip for now
 			items = append(items, &bi)
 		}
 	}

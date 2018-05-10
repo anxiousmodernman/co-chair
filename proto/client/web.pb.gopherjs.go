@@ -32,14 +32,38 @@ import (
 // is compatible with the jspb package it is being compiled against.
 const _ = jspb.JspbPackageIsVersion2
 
+type Backend_Protocol int
+
+const (
+	Backend_HTTP1 Backend_Protocol = 0
+	Backend_HTTP2 Backend_Protocol = 1
+	Backend_GRPC  Backend_Protocol = 3
+)
+
+var Backend_Protocol_name = map[int]string{
+	0: "HTTP1",
+	1: "HTTP2",
+	3: "GRPC",
+}
+var Backend_Protocol_value = map[string]int{
+	"HTTP1": 0,
+	"HTTP2": 1,
+	"GRPC":  3,
+}
+
+func (x Backend_Protocol) String() string {
+	return Backend_Protocol_name[int(x)]
+}
+
 type Backend struct {
 	Domain       string
 	Ips          []string
 	HealthCheck  string
 	HealthStatus string
-	Protocol     string
+	Protocol     Backend_Protocol
 	InternetCert *X509Cert
 	BackendCert  *X509Cert
+	MatchHeaders map[string]string
 }
 
 // GetDomain gets the Domain of the Backend.
@@ -75,7 +99,7 @@ func (m *Backend) GetHealthStatus() (x string) {
 }
 
 // GetProtocol gets the Protocol of the Backend.
-func (m *Backend) GetProtocol() (x string) {
+func (m *Backend) GetProtocol() (x Backend_Protocol) {
 	if m == nil {
 		return x
 	}
@@ -96,6 +120,14 @@ func (m *Backend) GetBackendCert() (x *X509Cert) {
 		return x
 	}
 	return m.BackendCert
+}
+
+// GetMatchHeaders gets the MatchHeaders of the Backend.
+func (m *Backend) GetMatchHeaders() (x map[string]string) {
+	if m == nil {
+		return x
+	}
+	return m.MatchHeaders
 }
 
 // MarshalToWriter marshals Backend to the provided writer.
@@ -120,8 +152,8 @@ func (m *Backend) MarshalToWriter(writer jspb.Writer) {
 		writer.WriteString(4, m.HealthStatus)
 	}
 
-	if len(m.Protocol) > 0 {
-		writer.WriteString(5, m.Protocol)
+	if int(m.Protocol) != 0 {
+		writer.WriteEnum(5, int(m.Protocol))
 	}
 
 	if m.InternetCert != nil {
@@ -134,6 +166,15 @@ func (m *Backend) MarshalToWriter(writer jspb.Writer) {
 		writer.WriteMessage(7, func() {
 			m.BackendCert.MarshalToWriter(writer)
 		})
+	}
+
+	if len(m.MatchHeaders) > 0 {
+		for key, value := range m.MatchHeaders {
+			writer.WriteMessage(8, func() {
+				writer.WriteString(1, key)
+				writer.WriteString(2, value)
+			})
+		}
 	}
 
 	return
@@ -163,7 +204,7 @@ func (m *Backend) UnmarshalFromReader(reader jspb.Reader) *Backend {
 		case 4:
 			m.HealthStatus = reader.ReadString()
 		case 5:
-			m.Protocol = reader.ReadString()
+			m.Protocol = Backend_Protocol(reader.ReadEnum())
 		case 6:
 			reader.ReadMessage(func() {
 				m.InternetCert = m.InternetCert.UnmarshalFromReader(reader)
@@ -171,6 +212,23 @@ func (m *Backend) UnmarshalFromReader(reader jspb.Reader) *Backend {
 		case 7:
 			reader.ReadMessage(func() {
 				m.BackendCert = m.BackendCert.UnmarshalFromReader(reader)
+			})
+		case 8:
+			if m.MatchHeaders == nil {
+				m.MatchHeaders = map[string]string{}
+			}
+			reader.ReadMessage(func() {
+				var key string
+				var value string
+				for reader.Next() {
+					switch reader.GetFieldNumber() {
+					case 1:
+						key = reader.ReadString()
+					case 2:
+						value = reader.ReadString()
+					}
+					m.MatchHeaders[key] = value
+				}
 			})
 		default:
 			reader.SkipField()

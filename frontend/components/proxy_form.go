@@ -24,7 +24,7 @@ func (e *EditProxyForm) Render() vecty.ComponentOrHTML {
 	// Get values from our fields
 	cb1 := func(val string) { e.Domain = val }
 	cb2 := func(val string) { e.IP = val }
-	cb3 := func(val string) { e.Protocol = val }
+	// cb3 := func(val string) { e.Protocol = val }
 	cb4 := func(val string) { e.Cert = []byte(val) }
 	cb5 := func(val string) { e.Key = []byte(val) }
 
@@ -34,7 +34,7 @@ func (e *EditProxyForm) Render() vecty.ComponentOrHTML {
 	return elem.Div(styles.ProxyForm().Yield(),
 		&LabeledInput{Label: "domain", cb: cb1},
 		&LabeledInput{Label: "ip:port", cb: cb2},
-		&LabeledInput{Label: "protocol prefix", cb: cb3},
+		// &LabeledInput{Label: "protocol prefix", cb: cb3},
 		&LabeledInput{Label: "cert", TextArea: true, cb: cb4},
 		&LabeledInput{Label: "key", TextArea: true, cb: cb5},
 		elem.Button(
@@ -47,7 +47,8 @@ func (e *EditProxyForm) addProxy(ev *vecty.Event) {
 	b := client.Backend{}
 	b.Domain = e.Domain
 	b.Ips = []string{e.IP}
-	b.Protocol = e.Protocol
+	// TODO add enum here
+	// b.Protocol = e.Protocol
 	b.BackendCert = &client.X509Cert{
 		Cert: e.Cert, Key: e.Key,
 	}

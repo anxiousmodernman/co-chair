@@ -22,9 +22,15 @@ message Backend {
     repeated string ips = 2;
     string health_check = 3;
     string health_status = 4;
-    string protocol = 5;
+    enum Protocol {
+        HTTP1 = 0;
+        HTTP2 = 1;
+        GRPC = 3;
+    };
+    Protocol protocol = 5;
     X509Cert internet_cert = 6;
     X509Cert backend_cert = 7;
+    map<string, string> match_headers = 8;
 }
 
 message X509Cert {
