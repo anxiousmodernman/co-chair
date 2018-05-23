@@ -164,6 +164,7 @@ func (f *TCPForwarder) Start() error {
 func (f *TCPForwarder) handleConn(ctx context.Context, conn net.Conn) {
 	_, done := context.WithCancel(ctx)
 	defer done()
+	defer conn.Close()
 	conn.SetDeadline(time.Now().Add(3 * time.Second))
 	// bufForBackend collects all the connection's reads until we select a backend,
 	// then we write all of bufForBackend's contents to the backend conn before
@@ -172,19 +173,16 @@ func (f *TCPForwarder) handleConn(ctx context.Context, conn net.Conn) {
 	// tee is how we copy/collect our initial reads of conn into bufForBackend
 	tee := io.TeeReader(conn, bufForBackend)
 	prefaceBytes := make([]byte, len([]byte(http2.ClientPreface)))
-	n, err := tee.Read(prefaceBytes)
-	if err != nil && err != io.EOF {
-		// EOF is not an error here?
+	_, err := tee.Read(prefaceBytes)
+	if err != nil {
+		// Treat EOF like an error here
 		f.logger.Errorf("first read: %v", err)
 		return
 	}
-	// prefaceBuffer can be eliminated if we make hasHTTP2Preface do an exact
-	// byte-for-byte match instead of using an io.Reader
-	prefaceBuffer := bytes.NewReader(prefaceBytes[:n])
 
 	var matched BackendData
 	var found []BackendData
-	if hasHTTP2Preface(prefaceBuffer) {
+	if hasHTTP2Preface(prefaceBytes) {
 		headers := gatherHTTP2Headers(tee)
 		query := f.DB.Select(
 			q.In("Protocol", []server.Backend_Protocol{
@@ -272,7 +270,7 @@ func (f *TCPForwarder) handleConn(ctx context.Context, conn net.Conn) {
 
 	go t.pipe(conn, bConn, "conn->bConn")
 	go t.pipe(bConn, conn, "bConn->conn")
-	f.logger.Debug("waiting")
+	f.logger.Debug("waiting for ErrorSig")
 	err = <-t.ErrorSig
 	f.logger.Debugf("closing conns: %v", err)
 	bConn.Close()
@@ -431,25 +429,8 @@ func gatherHTTP2Headers(r io.Reader) map[string]string {
 	}
 }
 
-func hasHTTP2Preface(r io.Reader) bool {
-	var b [len(http2.ClientPreface)]byte
-	last := 0
-
-	for {
-		n, err := r.Read(b[last:])
-		if err != nil {
-			return false
-		}
-
-		last += n
-		eq := string(b[:last]) == http2.ClientPreface[:last]
-		if last == len(http2.ClientPreface) {
-			return eq
-		}
-		if !eq {
-			return false
-		}
-	}
+func hasHTTP2Preface(b []byte) bool {
+	return bytes.Equal(b, []byte(http2.ClientPreface))
 }
 
 // HostWithoutPort extracts a hostname from an request, omitting
