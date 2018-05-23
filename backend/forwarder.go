@@ -180,9 +180,11 @@ func (f *TCPForwarder) handleConn(ctx context.Context, conn net.Conn) {
 		return
 	}
 
+	var isHTTP2 bool
 	var matched BackendData
 	var found []BackendData
 	if hasHTTP2Preface(prefaceBytes) {
+		isHTTP2 = true
 		headers := gatherHTTP2Headers(tee)
 		query := f.DB.Select(
 			q.In("Protocol", []server.Backend_Protocol{
@@ -198,13 +200,6 @@ func (f *TCPForwarder) handleConn(ctx context.Context, conn net.Conn) {
 			return
 		}
 		matched = found[0]
-
-		//for _, backend := range found {
-		//	if MatchHeaders(headers, backend.MatchHeaders) {
-		//		matched = backend
-		//		break
-		//	}
-		//}
 	} else {
 		partial := make([]byte, 4096)
 		n, err := tee.Read(partial)
@@ -243,8 +238,11 @@ func (f *TCPForwarder) handleConn(ctx context.Context, conn net.Conn) {
 		return
 	}
 	f.logger.Debugf("dialing backend: %v", matched.IPs[0])
-	// TODO when we dial backend, we need to set HTTP2 connection params
-	bConn, err := tls.Dial("tcp", matched.IPs[0], &tls.Config{InsecureSkipVerify: true})
+	bTLSConfig := &tls.Config{InsecureSkipVerify: true}
+	if isHTTP2 {
+		bTLSConfig.NextProtos = []string{"h2"}
+	}
+	bConn, err := tls.Dial("tcp", matched.IPs[0], bTLSConfig)
 	if err != nil {
 		f.logger.Errorf("dial backend: %v", err)
 		return

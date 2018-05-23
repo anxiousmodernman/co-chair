@@ -32,7 +32,6 @@ func testNewCAAndCert(t *testing.T) (*ls.CA, *ls.SignedCert) {
 }
 
 func TestTCPProxyForwarderHTTP2(t *testing.T) {
-	t.Skip("Skip until H2 works: https://github.com/anxiousmodernman/co-chair/issues/10")
 	f, _ := ioutil.TempFile("", "tempdb")
 	f.Close()
 
@@ -88,7 +87,6 @@ func TestTCPProxyForwarderHTTP2(t *testing.T) {
 }
 
 func TestTCPProxyForwarderHTTP1(t *testing.T) {
-	t.Skip("TEMP SKIP")
 	f, _ := ioutil.TempFile("", "tempdb")
 	f.Close()
 
