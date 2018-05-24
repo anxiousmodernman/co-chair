@@ -36,10 +36,11 @@
   revision = "c0c323146c700112a046e4012e1d1cab4d11afc9"
 
 [[projects]]
+  branch = "master"
   name = "github.com/anxiousmodernman/localserver"
   packages = ["."]
-  revision = "da63cb97abfddfc8f835fd9ccd13afc8ca75e8ec"
-  version = "v1.0.0"
+  revision = "d5a63420da53dcf2dab1efbe376243bc4aaaa414"
+  source = "github.com/anxiousmodernman/localserver"
 
 [[projects]]
   name = "github.com/asdine/storm"
@@ -233,12 +234,6 @@
   version = "v1.0.3"
 
 [[projects]]
-  name = "github.com/soheilhy/cmux"
-  packages = ["."]
-  revision = "e09e9389d85d8492d313d73d1469c029e710623f"
-  version = "v0.1.4"
-
-[[projects]]
   name = "github.com/urfave/cli"
   packages = ["."]
   revision = "cfb38830724cc34fedffe9a2a29fb54fa9169cd1"
@@ -384,6 +379,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "15ea12a936ea5d7755208aba66248fc15fa2fee9af0cc5b6d0fe514aa866d502"
+  inputs-digest = "b54e180bb0d2002584ce31be7a6f6109934c3a45641522c814654fdc94599ed1"
   solver-name = "gps-cdcl"
   solver-version = 1

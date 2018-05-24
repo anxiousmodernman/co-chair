@@ -17,7 +17,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/soheilhy/cmux"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/hpack"
 
@@ -107,6 +106,8 @@ type TCPForwarder struct {
 // each connection. This lets us dynamically fetch certs.
 func (f *TCPForwarder) GetCertificate(hi *tls.ClientHelloInfo) (*tls.Certificate, error) {
 	host := hi.ServerName
+	fmt.Println("SERVER Name", hi.ServerName)
+
 	var bd BackendData
 	err := f.DB.One("Domain", host, &bd)
 	if err != nil {
@@ -275,18 +276,6 @@ func (f *TCPForwarder) handleConn(ctx context.Context, conn net.Conn) {
 	conn.Close()
 }
 
-func tryAllMatchers(r io.Reader, matchers []cmux.Matcher) bool {
-	var goodSoFar bool
-	for _, matcher := range matchers {
-		if matcher(r) {
-			goodSoFar = true
-		} else {
-			return false
-		}
-	}
-	return goodSoFar
-}
-
 // Stop ...
 func (f *TCPForwarder) Stop() error {
 	return f.L.Close()
@@ -316,10 +305,12 @@ func (t *Tunnel) pipe(src, dst net.Conn, dir string) {
 
 // A Tunnel streams data between two conns.
 type Tunnel struct {
+	// TODO(cm) XConn fields are unused
 	ServerConn  net.Conn
 	BackendConn net.Conn
-	ErrorState  error
-	ErrorSig    chan error
+
+	ErrorState error
+	ErrorSig   chan error
 }
 
 func (t *Tunnel) err(err error) {
