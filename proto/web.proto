@@ -1,6 +1,5 @@
 syntax = "proto3";
 
-// Web exposes a backend server over gRPC.
 package web;
 
 import "github.com/johanbrandhorst/protobuf/proto/gopherjs.proto";

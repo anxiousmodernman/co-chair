@@ -181,11 +181,9 @@ func (f *TCPForwarder) handleConn(ctx context.Context, conn net.Conn) {
 		return
 	}
 
-	var isHTTP2 bool
 	var matched BackendData
 	var found []BackendData
 	if hasHTTP2Preface(prefaceBytes) {
-		isHTTP2 = true
 		headers := gatherHTTP2Headers(tee)
 		query := f.DB.Select(
 			q.In("Protocol", []server.Backend_Protocol{
@@ -197,7 +195,6 @@ func (f *TCPForwarder) handleConn(ctx context.Context, conn net.Conn) {
 		err := query.Find(&found)
 		if err != nil {
 			f.logger.Error(err)
-			conn.Close()
 			return
 		}
 		matched = found[0]
@@ -206,7 +203,6 @@ func (f *TCPForwarder) handleConn(ctx context.Context, conn net.Conn) {
 		n, err := tee.Read(partial)
 		if err != nil && err != io.EOF {
 			f.logger.Errorf("http1 error: %v", err)
-			conn.Close()
 			return
 		}
 		joined := bytes.Join([][]byte{bufForBackend.Bytes(), partial[:n]}, []byte(""))
@@ -221,59 +217,48 @@ func (f *TCPForwarder) handleConn(ctx context.Context, conn net.Conn) {
 		err = query.Find(&found)
 		if err != nil {
 			f.logger.Errorf("http1 query error: %v", err)
-			conn.Close()
 			return
 		}
 		matched = found[0]
 	}
-	// expect only one found, for now
-	if len(found) != 1 {
-		f.logger.Error("no backends found")
-		conn.Close()
-		return
+	if err := f.DialAndTunnel(&matched, bufForBackend, conn); err != nil {
+		f.logger.Errorf("could not proxy: %v", err)
+	}
+}
+
+// DialAndTunnel connects to the passed in backend, and tunnels traffic
+// to it and from it.
+func (f *TCPForwarder) DialAndTunnel(bd *BackendData, buffered *bytes.Buffer, conn net.Conn) error {
+
+	if len(bd.IPs) < 1 {
+		return fmt.Errorf("backend %s has no configured IPs", bd.Domain)
 	}
 
-	if len(matched.IPs) < 1 {
-		f.logger.Errorf("backend %s has no configured IPs", matched.Domain)
-		conn.Close()
-		return
-	}
-	f.logger.Debugf("dialing backend: %v", matched.IPs[0])
+	f.logger.Debugf("dialing backend: %v", bd.IPs[0])
 	bTLSConfig := &tls.Config{InsecureSkipVerify: true}
-	if isHTTP2 {
+	if bd.Protocol == server.Backend_GRPC || bd.Protocol == server.Backend_HTTP2 {
 		bTLSConfig.NextProtos = []string{"h2"}
 	}
-	bConn, err := tls.Dial("tcp", matched.IPs[0], bTLSConfig)
+	bConn, err := tls.Dial("tcp", bd.IPs[0], bTLSConfig)
 	if err != nil {
-		f.logger.Errorf("dial backend: %v", err)
-		return
+		return fmt.Errorf("dial backend: %v", err)
 	}
+	defer bConn.Close()
 	bConn.SetDeadline(time.Now().Add(3 * time.Second))
 	// our first backend write is the little buffer we read
 	// from the incoming conn, by writing here we
 	// pass it upstream after we've inspected it.
-	_, err = bConn.Write(bufForBackend.Bytes())
+	_, err = bConn.Write(buffered.Bytes())
 	if err != nil {
-		f.logger.Errorf("first write to backend: %v", err)
-		conn.Close()
-		bConn.Close()
-		return
+		return fmt.Errorf("first write to backend: %v", err)
 	}
 
-	var t = Tunnel{
-		ErrorState:  nil,
-		ErrorSig:    make(chan error),
-		ServerConn:  conn,
-		BackendConn: bConn,
-	}
+	t := Tunnel{ErrorState: nil, ErrorSig: make(chan error)}
 
+	f.logger.Debug("proxying")
 	go t.pipe(conn, bConn, "conn->bConn")
 	go t.pipe(bConn, conn, "bConn->conn")
-	f.logger.Debug("waiting for ErrorSig")
-	err = <-t.ErrorSig
-	f.logger.Debugf("closing conns: %v", err)
-	bConn.Close()
-	conn.Close()
+	return <-t.ErrorSig
 }
 
 // Stop ...
@@ -305,10 +290,6 @@ func (t *Tunnel) pipe(src, dst net.Conn, dir string) {
 
 // A Tunnel streams data between two conns.
 type Tunnel struct {
-	// TODO(cm) XConn fields are unused
-	ServerConn  net.Conn
-	BackendConn net.Conn
-
 	ErrorState error
 	ErrorSig   chan error
 }
@@ -373,7 +354,6 @@ func gatherHTTP2Headers(r io.Reader) map[string]string {
 
 	done := false
 	// w, r
-
 	framer := http2.NewFramer(ioutil.Discard, r)
 	hdec := hpack.NewDecoder(uint32(4<<16), func(hf hpack.HeaderField) {
 		headers[hf.Name] = hf.Value
