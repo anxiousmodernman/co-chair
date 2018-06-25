@@ -1,6 +1,7 @@
 package backend
 
 import (
+	"bytes"
 	"context"
 	"crypto/rsa"
 	"crypto/tls"
@@ -8,19 +9,27 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net"
 	"net/http"
+	"net/http/httputil"
 	"strings"
 	"time"
 
+	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/hpack"
+
 	"github.com/anxiousmodernman/co-chair/proto/server"
 	"github.com/asdine/storm"
+	"github.com/asdine/storm/q"
 	"github.com/sirupsen/logrus"
 	"github.com/vulcand/oxy/trace"
 )
 
-// NewTCPForwarder ...
+// NewTCPForwarder constructs a TCPForwarder from a variable list of options.
+// Passing a database (either by pass or by reference) is required or the
+// TCPForwarder will fail at runtime.
 func NewTCPForwarder(opts ...Opt) (*TCPForwarder, error) {
 
 	var fwdr TCPForwarder
@@ -81,7 +90,10 @@ func WithListener(l net.Listener) Opt {
 	}
 }
 
-// TCPForwarder ...
+// TCPForwarder is our actual listener type that clients will connect to. This
+// implementation then inspects the requests that come in on connections, and
+// selects an appropriate backend by talking gRPC to a Proxy instance via C, its
+// embedded server.ProxyClient.
 type TCPForwarder struct {
 	C      server.ProxyClient
 	L      net.Listener
@@ -94,6 +106,8 @@ type TCPForwarder struct {
 // each connection. This lets us dynamically fetch certs.
 func (f *TCPForwarder) GetCertificate(hi *tls.ClientHelloInfo) (*tls.Certificate, error) {
 	host := hi.ServerName
+	fmt.Println("SERVER Name", hi.ServerName)
+
 	var bd BackendData
 	err := f.DB.One("Domain", host, &bd)
 	if err != nil {
@@ -113,10 +127,13 @@ func (f *TCPForwarder) Start() error {
 	if f.DB == nil {
 		return errors.New("database is nil")
 	}
-	// If we did not have a listener set directly, spin one up
+	// If we did not have a listener set directly, spin one up.
+	// This is the normal path, because we do not set a listener
+	// in main.go, currently.
 	if f.L == nil {
 		var tlsConf tls.Config
 		tlsConf.GetCertificate = f.GetCertificate
+		tlsConf.NextProtos = []string{"h2"}
 		lis, err := tls.Listen("tcp", f.Addr, &tlsConf)
 		if err != nil {
 			return err
@@ -144,79 +161,104 @@ func (f *TCPForwarder) Start() error {
 	return nil
 }
 
+// Where all the fun happens!
 func (f *TCPForwarder) handleConn(ctx context.Context, conn net.Conn) {
 	_, done := context.WithCancel(ctx)
 	defer done()
+	defer conn.Close()
 	conn.SetDeadline(time.Now().Add(3 * time.Second))
-	buf := make([]byte, 4096)
-	n, err := conn.Read(buf)
+	// bufForBackend collects all the connection's reads until we select a backend,
+	// then we write all of bufForBackend's contents to the backend conn before
+	// tunneling the rest of the bytes through.
+	bufForBackend := bytes.NewBuffer([]byte(""))
+	// tee is how we copy/collect our initial reads of conn into bufForBackend
+	tee := io.TeeReader(conn, bufForBackend)
+	prefaceBytes := make([]byte, len([]byte(http2.ClientPreface)))
+	_, err := tee.Read(prefaceBytes)
 	if err != nil {
+		// Treat EOF like an error here
 		f.logger.Errorf("first read: %v", err)
 		return
 	}
-	conn.SetDeadline(time.Now().Add(5 * time.Second))
 
-	var host string
-	lines := strings.Split(string(buf[:n]), "\r\n")
-	for _, line := range lines {
-		if strings.HasPrefix(line, "Host:") {
-			host = strings.TrimSpace(strings.Split(line, ":")[1])
-		}
-	}
-
-	// look up the domain in the db
-	var bd BackendData
-	err = f.DB.One("Domain", host, &bd)
-	if err != nil {
-		if err == storm.ErrNotFound {
-			// This should never happen, since our GetCertificate implemenation
-			// has already performed this exact query, but hey.
-			f.logger.Debug("backend not found: ", host)
-			conn.Close()
+	var matched BackendData
+	var found []BackendData
+	if hasHTTP2Preface(prefaceBytes) {
+		headers := gatherHTTP2Headers(tee)
+		query := f.DB.Select(
+			q.In("Protocol", []server.Backend_Protocol{
+				server.Backend_GRPC,
+				server.Backend_HTTP2,
+			}),
+			q.Eq("Domain", HostWithoutPort(headers[":authority"])),
+		)
+		err := query.Find(&found)
+		if err != nil {
+			f.logger.Error(err)
 			return
 		}
-		f.logger.Error(err)
-		conn.Close()
-		return
+		matched = found[0]
+	} else {
+		partial := make([]byte, 4096)
+		n, err := tee.Read(partial)
+		if err != nil && err != io.EOF {
+			f.logger.Errorf("http1 error: %v", err)
+			return
+		}
+		joined := bytes.Join([][]byte{bufForBackend.Bytes(), partial[:n]}, []byte(""))
+		var host string
+		lines := strings.Split(string(joined), "\r\n")
+		for _, line := range lines {
+			if strings.HasPrefix(line, "Host:") {
+				host = strings.TrimSpace(strings.Split(line, ":")[1])
+			}
+		}
+		query := f.DB.Select(q.Eq("Domain", HostWithoutPort(host)))
+		err = query.Find(&found)
+		if err != nil {
+			f.logger.Errorf("http1 query error: %v", err)
+			return
+		}
+		matched = found[0]
 	}
+	if err := f.DialAndTunnel(&matched, bufForBackend, conn); err != nil {
+		f.logger.Errorf("could not proxy: %v", err)
+	}
+}
+
+// DialAndTunnel connects to the passed in backend, and tunnels traffic
+// to it and from it.
+func (f *TCPForwarder) DialAndTunnel(bd *BackendData, buffered *bytes.Buffer, conn net.Conn) error {
+
 	if len(bd.IPs) < 1 {
-		f.logger.Errorf("backend %s has no configured IPs", host)
-		conn.Close()
-		return
+		return fmt.Errorf("backend %s has no configured IPs", bd.Domain)
 	}
+
 	f.logger.Debugf("dialing backend: %v", bd.IPs[0])
-	bConn, err := tls.Dial("tcp", bd.IPs[0], &tls.Config{InsecureSkipVerify: true})
-	if err != nil {
-		f.logger.Errorf("dial backend: %v", err)
-		return
+	bTLSConfig := &tls.Config{InsecureSkipVerify: true}
+	if bd.Protocol == server.Backend_GRPC || bd.Protocol == server.Backend_HTTP2 {
+		bTLSConfig.NextProtos = []string{"h2"}
 	}
+	bConn, err := tls.Dial("tcp", bd.IPs[0], bTLSConfig)
+	if err != nil {
+		return fmt.Errorf("dial backend: %v", err)
+	}
+	defer bConn.Close()
 	bConn.SetDeadline(time.Now().Add(3 * time.Second))
 	// our first backend write is the little buffer we read
 	// from the incoming conn, by writing here we
 	// pass it upstream after we've inspected it.
-	_, err = bConn.Write(buf[:n])
+	_, err = bConn.Write(buffered.Bytes())
 	if err != nil {
-		f.logger.Errorf("first write to backend: %v", err)
-		conn.Close()
-		bConn.Close()
-		return
+		return fmt.Errorf("first write to backend: %v", err)
 	}
 
-	var t = Tunnel{
-		ErrorState:  nil,
-		ErrorSig:    make(chan error),
-		ServerConn:  conn,
-		BackendConn: bConn,
-	}
+	t := Tunnel{ErrorState: nil, ErrorSig: make(chan error)}
 
+	f.logger.Debug("proxying")
 	go t.pipe(conn, bConn, "conn->bConn")
 	go t.pipe(bConn, conn, "bConn->conn")
-	fmt.Println("waiting now")
-	f.logger.Debug("waiting")
-	err = <-t.ErrorSig
-	f.logger.Debugf("closing conns: %v", err)
-	bConn.Close()
-	conn.Close()
+	return <-t.ErrorSig
 }
 
 // Stop ...
@@ -248,10 +290,8 @@ func (t *Tunnel) pipe(src, dst net.Conn, dir string) {
 
 // A Tunnel streams data between two conns.
 type Tunnel struct {
-	ServerConn  net.Conn
-	BackendConn net.Conn
-	ErrorState  error
-	ErrorSig    chan error
+	ErrorState error
+	ErrorSig   chan error
 }
 
 func (t *Tunnel) err(err error) {
@@ -284,6 +324,7 @@ func certFromFile(path string) ([][]byte, *x509.Certificate, error) {
 	ret = append(ret, cert.Raw)
 	return ret, cert, nil
 }
+
 func privateKeyFromFile(path string) (*rsa.PrivateKey, error) {
 
 	privateKey, err := ioutil.ReadFile(path)
@@ -301,16 +342,86 @@ type TimedRecord struct {
 	Data trace.Record
 }
 
-func orElse(a, b string) string {
-	if a != "" {
-		return a
-	}
-	return b
+func debugRequest(req *http.Request) {
+	data, _ := httputil.DumpRequest(req, false)
+	fmt.Printf("%s\n\n", string(data))
 }
 
-func protocolFmt(r *http.Request) string {
-	if r.TLS == nil {
-		return "http://"
+// adapted from cmux
+func gatherHTTP2Headers(r io.Reader) map[string]string {
+
+	headers := make(map[string]string)
+
+	done := false
+	// w, r
+	framer := http2.NewFramer(ioutil.Discard, r)
+	hdec := hpack.NewDecoder(uint32(4<<16), func(hf hpack.HeaderField) {
+		headers[hf.Name] = hf.Value
+	})
+	for {
+		f, err := framer.ReadFrame()
+		if err != nil {
+			return nil
+		}
+
+		switch f := f.(type) {
+		case *http2.SettingsFrame:
+			// Sender acknoweldged the SETTINGS frame. No need to write
+			// SETTINGS again.
+			if f.IsAck() {
+				break
+			}
+			if err := framer.WriteSettings(); err != nil {
+				return nil
+			}
+		case *http2.ContinuationFrame:
+			if _, err := hdec.Write(f.HeaderBlockFragment()); err != nil {
+				return nil
+			}
+			done = done || f.FrameHeader.Flags&http2.FlagHeadersEndHeaders != 0
+		case *http2.HeadersFrame:
+			if _, err := hdec.Write(f.HeaderBlockFragment()); err != nil {
+				return nil
+			}
+			done = done || f.FrameHeader.Flags&http2.FlagHeadersEndHeaders != 0
+		case *http2.WindowUpdateFrame:
+			// TODO do we need to write this?
+			//err = framer.WriteWindowUpdate(f.StreamID, f.Increment)
+			//if err != nil {
+			//	fmt.Println("window update err", err)
+			//}
+		}
+
+		if done {
+			return headers
+		}
 	}
-	return "https://"
+}
+
+func hasHTTP2Preface(b []byte) bool {
+	return bytes.Equal(b, []byte(http2.ClientPreface))
+}
+
+// HostWithoutPort extracts a hostname from an request, omitting
+// any ":PORT" portion, if present. This is the value from the "Host:" header
+// in HTTP1, or the ":authority" header in HTTP2.
+func HostWithoutPort(s string) string {
+	if strings.Contains(s, ":") {
+		return strings.Split(s, ":")[0]
+	}
+	return s
+}
+
+// MatchHeaders compares headers from an HTTP2 request to values in our database.
+func MatchHeaders(fromReq, fromDB map[string]string) bool {
+	var matched = false
+	for k, dbVal := range fromDB {
+		if headerVal, ok := fromReq[k]; ok && headerVal == dbVal {
+			matched = true
+		} else {
+			// return early if we get a different value
+			return false
+		}
+	}
+	return matched
 }

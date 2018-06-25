@@ -14,7 +14,6 @@ func TestCombine(t *testing.T) {
 
 	assert := func(l []string, r ...string) {
 		for i, x := range l {
-			t.Log(x, r[i])
 			if x != r[i] {
 				t.Errorf("expected %s got %s", x, r[i])
 			}

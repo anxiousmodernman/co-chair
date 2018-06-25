@@ -297,7 +297,6 @@ func run(conf config.Config) error {
 	// KeyStore is an interface, so it is nil if unset.
 	var keystore curvetls.KeyStore
 	if conf.APIClientValidation {
-		// We can share the db pointer, it's cool.
 		keystore = &backend.StormKeystore{DB: px.DB}
 	}
 

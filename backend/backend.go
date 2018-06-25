@@ -8,6 +8,7 @@ import (
 	"io"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/Rudd-O/curvetls"
 	"github.com/cloudflare/cfssl/cli/genkey"
@@ -24,7 +25,8 @@ import (
 
 // Proxy is our server.ProxyServer implementation.
 type Proxy struct {
-	DB *storm.DB
+	DB  *storm.DB
+	mtx *sync.Mutex
 }
 
 // NewProxy is our constructor for the server.ProxyServer implementation.
@@ -44,8 +46,7 @@ func NewProxy(path string) (*Proxy, error) {
 				return nil, err
 			}
 			newKP := KeyPair{Name: "server", Pub: pub.String(), Priv: priv.String()}
-			err = db.Save(&newKP)
-			if err != nil {
+			if err := db.Save(&newKP); err != nil {
 				return nil, err
 			}
 		} else {
@@ -53,7 +54,7 @@ func NewProxy(path string) (*Proxy, error) {
 		}
 	}
 
-	return &Proxy{db}, nil
+	return &Proxy{db, &sync.Mutex{}}, nil
 }
 
 // assert that Proxy is a server.ProxyServer at compile time.
@@ -86,17 +87,15 @@ func (p *Proxy) Put(ctx context.Context, b *server.Backend) (*server.OpResult, e
 
 	var bd BackendData
 	err := p.DB.One("Domain", b.Domain, &bd)
-	if err != nil {
-		if err == storm.ErrNotFound {
-			// do nothing, so always overwrite the BackendData
-		} else {
-			return &server.OpResult{}, fmt.Errorf("domain lookup: %v", err)
-		}
+	// ignore ErrNotFound: always overwrite the BackendData
+	if err != nil && err != storm.ErrNotFound {
+		return &server.OpResult{}, fmt.Errorf("domain lookup: %v", err)
 	}
 
 	bd.Domain = b.Domain
 	bd.IPs = combine(bd.IPs, b.Ips)
 	bd.Protocol = b.Protocol
+	bd.MatchHeaders = b.MatchHeaders
 
 	if b.BackendCert != nil {
 		bd.BackendCert = b.BackendCert.Cert
@@ -183,8 +182,7 @@ func (p *Proxy) GetKVStream(key *server.Key, stream server.Proxy_GetKVStreamServ
 	}
 	c := tx.Bucket([]byte("streams")).Cursor()
 
-	// Our time range spans the 90's decade.
-	// RFC3339
+	// RFC3339 example: the 90's decade.
 	//min := []byte("1990-01-01T00:00:00Z")
 	//max := []byte("2000-01-01T00:00:00Z")
 
@@ -236,7 +234,7 @@ func (p *Proxy) Remove(_ context.Context, b *server.Backend) (*server.OpResult, 
 // BackendData is our type for the storm ORM. We can define field-level
 // constraints and indexes on struct tags. It is unfortunate that we
 // need an intermediary type, but it seems better than going in and
-// adding storm struct tags to generated code.
+// adding storm struct tags to protobuf-generated code.
 //
 // See issue: https://github.com/golang/protobuf/issues/52
 type BackendData struct {
@@ -245,10 +243,13 @@ type BackendData struct {
 	IPs    []string
 	// An optional endpoint we can call, expecting HTTP 200
 	HealthCheck string
-	// one of http:// or https://
-	Protocol string
+	// one of HTTP1, HTTP2, GRPC
+	Protocol server.Backend_Protocol
 	// Our TLS certs and keys.
 	BackendCert, BackendKey []byte
+	// Headers to match on during backend selection when we first
+	// get a connection.
+	MatchHeaders map[string]string
 }
 
 // AsBackend is a conversion method to a grpc-sendable type.
@@ -262,7 +263,7 @@ func (bd BackendData) AsBackend() *server.Backend {
 
 // KeyPair is a database type that represents curvetls key pairs. A KeyPair
 // must be in the database for each pure grpc client that wants to connect.
-// Not used for grpc websocket clients.
+// Not used for grpc websocket clients. We rely on HTTPS for those.
 type KeyPair struct {
 	Name string `storm:"unique,id"`
 	// Pub and Priv are base64 strings that represent curvetls keys
