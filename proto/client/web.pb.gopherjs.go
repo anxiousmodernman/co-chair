@@ -4,8 +4,6 @@
 /*
 	Package client is a generated protocol buffer package.
 
-	Web exposes a backend server over gRPC.
-
 	It is generated from these files:
 		proto/web.proto
 
