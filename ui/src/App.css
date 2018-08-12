@@ -1,28 +1,72 @@
-.App {
+
+body {
+  font-family: arial;
+}
+
+@media (max-width: 768px) {
+  .container {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
+  nav {
+    display: flex;
+    flex-direction: row;
+    background-color: #f90;
+    padding: 20px;
+  }
+}
+
+
+@media (min-width: 768px) {
+  .container {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    display: grid;
+    grid-template-columns: 200px 1fr 200px;
+    grid-template-rows: auto 1fr auto;
+    overflow: hidden;
+    height: 100vh;
+  }
+  nav {
+    background-color: #f90;
+    padding: 20px;
+  }
+}
+
+header {
+  grid-column: span 3;
+  padding: 30px;
   text-align: center;
-}
-
-.App-logo {
-  animation: App-logo-spin infinite 20s linear;
-  height: 80px;
-}
-
-.App-header {
-  background-color: #222;
-  height: 150px;
-  padding: 20px;
+  font-size: 1.4em;
+  background-color: #369;
   color: white;
 }
 
-.App-title {
-  font-size: 1.5em;
+main {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
 }
 
-.App-intro {
-  font-size: large;
+ 
+aside {
+  padding: 20px;
+  background-color: #936;
 }
 
-@keyframes App-logo-spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+footer {
+  grid-column: span 3;
+  padding: 20px;
+  text-align: center;
+  font-size: 1.4em;
+  background-color: #690;
+  color: white;
+}
+
+h1 {
+  margin-bottom: 1em;
+  font-size: 1.3em;
+  font-weight: bold;
 }
