@@ -1,13 +1,13 @@
-import React, { Component } from 'react';
-import logo from './logo.svg';
+import * as React from 'react';
 import './App.css';
-import PropTypes from 'prop-types';
 
-class App extends Component {
-  render() {
+// import logo from './logo.svg';
+
+class App extends React.Component {
+  public render() {
     return (
-      <div class="container">
-        <header>Header</header>
+      <div className="container">
+        <header>co-chair</header>
         <nav>
           <div>Thing</div>
           <div>Thing</div>
@@ -26,7 +26,5 @@ class App extends Component {
     );
   }
 }
-
-App.propTypes = {}
 
 export default App;

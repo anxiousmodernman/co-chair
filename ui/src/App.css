@@ -9,11 +9,41 @@ body {
     flex-direction: column;
     min-height: 100vh;
   }
+  header {
+    grid-column: span 3;
+    padding: 30px;
+    text-align: center;
+    font-size: 1.4em;
+    background-color: #369;
+    color: white;
+    order: 1;
+  }
   nav {
     display: flex;
     flex-direction: row;
     background-color: #f90;
     padding: 20px;
+    order: 3;
+  }
+  main {
+    flex: 1;
+    padding: 20px;
+    overflow-y: auto;
+    order: 2;
+  }
+  aside {
+    padding: 20px;
+    background-color: #936;
+    order: 4;
+  }
+  footer {
+    grid-column: span 3;
+    padding: 20px;
+    text-align: center;
+    font-size: 1.4em;
+    background-color: #690;
+    color: white;
+    order: 5;
   }
 }
 
@@ -29,41 +59,39 @@ body {
     overflow: hidden;
     height: 100vh;
   }
+  header {
+    grid-column: span 3;
+    padding: 30px;
+    text-align: center;
+    font-size: 1.4em;
+    background-color: #369;
+    color: white;
+  }
   nav {
     background-color: #f90;
     padding: 20px;
   }
-}
-
-header {
-  grid-column: span 3;
-  padding: 30px;
-  text-align: center;
-  font-size: 1.4em;
-  background-color: #369;
-  color: white;
-}
-
-main {
-  flex: 1;
-  padding: 20px;
-  overflow-y: auto;
+  main {
+    flex: 1;
+    padding: 20px;
+    overflow-y: auto;
+  }
+  aside {
+    padding: 20px;
+    background-color: #936;
+  }
+  footer {
+    grid-column: span 3;
+    padding: 20px;
+    text-align: center;
+    font-size: 1.4em;
+    background-color: #690;
+    color: white;
+  }
 }
 
  
-aside {
-  padding: 20px;
-  background-color: #936;
-}
 
-footer {
-  grid-column: span 3;
-  padding: 20px;
-  text-align: center;
-  font-size: 1.4em;
-  background-color: #690;
-  color: white;
-}
 
 h1 {
   margin-bottom: 1em;
