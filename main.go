@@ -29,6 +29,7 @@ import (
 
 	"github.com/anxiousmodernman/co-chair/backend"
 	"github.com/anxiousmodernman/co-chair/config"
+	"github.com/anxiousmodernman/co-chair/frontend/bundle"
 	"github.com/anxiousmodernman/co-chair/grpcclient"
 	"github.com/anxiousmodernman/co-chair/proto/server"
 	"github.com/dchest/uniuri"
@@ -244,7 +245,7 @@ func main() {
 				if err != nil {
 					return err
 				}
-				return run(conf)
+				return serve(conf)
 			},
 		},
 		cli.Command{
@@ -278,11 +279,11 @@ func main() {
 	}
 
 	if err := app.Run(os.Args); err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 	}
 }
 
-func run(conf config.Config) error {
+func serve(conf config.Config) error {
 
 	// TODO: construct storm.DB here and pass to constructors instead of
 	// grabbing the field off the Proxy.
@@ -317,7 +318,7 @@ func run(conf config.Config) error {
 
 	webTLScreds, err := credentials.NewClientTLSFromFile(conf.WebUICert, "")
 	if err != nil {
-		return errors.New("Failed to get local server client credentials, did you run `make generate_cert`?")
+		return errors.New("missing web ui tls cert")
 	}
 
 	wsproxy := wsproxy.WrapServer(
@@ -328,6 +329,7 @@ func run(conf config.Config) error {
 	// Note: routes are evaluated in the order they're defined.
 	p := mux.NewRouter()
 
+	// Set up our authentication handler, with optional bypass
 	authHandler := IsAuthenticated
 	if conf.BypassAuth0 {
 		logger.Info("insecure configuration: bypassing auth0 protection for webUI")
@@ -368,18 +370,24 @@ func run(conf config.Config) error {
 		negroni.Wrap(websocketsProxy(wsproxy)),
 	)).Methods("POST")
 
-	p.Handle("/frontend.js", negroni.New(
-		setConf(conf),
-		negroni.HandlerFunc(withLog),
-		negroni.HandlerFunc(authHandler),
-		negroni.Wrap(http.HandlerFunc(homeHandler)),
-	)).Methods("GET")
+	// Dynamically construct static handlers
+	for _, filePath := range bundle.Entries {
+		logger.Info("adding path:", filePath)
 
+		p.Handle("/"+filePath, negroni.New(
+			setConf(conf),
+			negroni.HandlerFunc(withLog),
+			negroni.HandlerFunc(authHandler),
+			negroni.Wrap(http.HandlerFunc(staticHandler)),
+		)).Methods("GET")
+	}
+
+	// else we serve the "static" folder
 	p.Handle("/", negroni.New(
 		setConf(conf),
 		negroni.HandlerFunc(withLog),
 		negroni.HandlerFunc(authHandler),
-		negroni.Wrap(http.HandlerFunc(homeHandler)),
+		negroni.Wrap(http.HandlerFunc(staticHandler)),
 	)).Methods("GET")
 
 	// Web server for our Vecty/GopherJS management UI
