@@ -10,14 +10,6 @@
   version = "v0.3.0"
 
 [[projects]]
-  digest = "1:32fa3ff538ddd0b8312f56bcb15ef3340eee00891cd9c76464746b7cebcac210"
-  name = "github.com/PuerkitoBio/goquery"
-  packages = ["."]
-  pruneopts = ""
-  revision = "e1271ee34c6a305e38566ecd27ae374944907ee9"
-  version = "v1.1.0"
-
-[[projects]]
   branch = "grpc_credentials"
   digest = "1:ee0c006f2950ae25b8b8ba4039e20e8f07b9c282319f51bafe2813c1c9f2c965"
   name = "github.com/Rudd-O/curvetls"
@@ -25,14 +17,6 @@
   pruneopts = ""
   revision = "c28a1e3ee744ad096dc7b06b8f19be7541ee8f82"
   source = "github.com/anxiousmodernman/curvetls"
-
-[[projects]]
-  branch = "master"
-  digest = "1:8012998ddb3eed9cc0a3b2512d1f37d0947fd604868049cc698d9dc6ea1bd46c"
-  name = "github.com/andybalholm/cascadia"
-  packages = ["."]
-  pruneopts = ""
-  revision = "349dd0209470eabd9514242c688c403c0926d266"
 
 [[projects]]
   branch = "master"
@@ -167,33 +151,20 @@
   revision = "92268ecacdbdbe087fc6de47fe9bdb04a61f9e67"
 
 [[projects]]
-  branch = "master"
-  digest = "1:038a1bd21ad9bf799195c4f061c85e21df06e5ba9ab0c8c4bfb1a0f8c25e19d5"
-  name = "github.com/gopherjs/vecty"
-  packages = [
-    ".",
-    "elem",
-    "event",
-    "prop",
-  ]
-  pruneopts = ""
-  revision = "03a16cfdc96974c7afdc9aa784b4a91b0964c359"
-
-[[projects]]
-  branch = "master"
-  digest = "1:8663568606be8b28d231d36d5a27c5a6dbebcd8147456ce848380789d150563b"
-  name = "github.com/gopherjs/websocket"
-  packages = ["websocketjs"]
-  pruneopts = ""
-  revision = "87ee47603f137e7f8419765b3621b3c36e715a08"
-
-[[projects]]
   digest = "1:20ed7daa9b3b38b6d1d39b48ab3fd31122be5419461470d0c28de3e121c93ecf"
   name = "github.com/gorilla/context"
   packages = ["."]
   pruneopts = ""
   revision = "1ea25387ff6f684839d82767c1733ff4d4d15d0a"
   version = "v1.1"
+
+[[projects]]
+  digest = "1:66d63ec7b6035984dced87ad37066e5f4ad277c60234a9d9925537248e983200"
+  name = "github.com/gorilla/handlers"
+  packages = ["."]
+  pruneopts = ""
+  revision = "7e0847f9db758cdebd26c149d0ae9d5d0b9c98ce"
+  version = "v1.4.0"
 
 [[projects]]
   digest = "1:a759b98c93c6dab29652eacd70cd7d0e88f02de8bc63051f787329966ec0a0ee"
@@ -240,12 +211,7 @@
   digest = "1:b0d61b59085725cdbe5cf437a3381149936a18a9d31dd2acd3b21e76c1e5a954"
   name = "github.com/johanbrandhorst/protobuf"
   packages = [
-    "grpcweb",
-    "grpcweb/grpcwebjs",
-    "grpcweb/metadata",
-    "grpcweb/status",
     "internal",
-    "jspb",
     "proto",
     "protoc-gen-gopherjs",
     "protoc-gen-gopherjs/generator",
@@ -333,8 +299,6 @@
   packages = [
     "context",
     "context/ctxhttp",
-    "html",
-    "html/atom",
     "http2",
     "http2/hpack",
     "idna",
@@ -444,14 +408,6 @@
   revision = "5a9f7b402fe85096d2e1d0383435ee1876e863d0"
   version = "v1.8.0"
 
-[[projects]]
-  branch = "master"
-  digest = "1:487126c0ee5956ff64b1e3ada3cc55baca8df07b6cf621211683f0ed248bc4c9"
-  name = "honnef.co/go/js/dom"
-  packages = ["."]
-  pruneopts = ""
-  revision = "790c7894c96d07ad1d2081aca7091a894de79a46"
-
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
@@ -473,16 +429,11 @@
     "github.com/dchest/uniuri",
     "github.com/golang/protobuf/proto",
     "github.com/golang/protobuf/protoc-gen-go",
-    "github.com/gopherjs/vecty",
-    "github.com/gopherjs/vecty/elem",
-    "github.com/gopherjs/vecty/event",
-    "github.com/gopherjs/vecty/prop",
+    "github.com/gorilla/handlers",
     "github.com/gorilla/mux",
     "github.com/gorilla/sessions",
     "github.com/gorilla/websocket",
     "github.com/improbable-eng/grpc-web/go/grpcweb",
-    "github.com/johanbrandhorst/protobuf/grpcweb",
-    "github.com/johanbrandhorst/protobuf/jspb",
     "github.com/johanbrandhorst/protobuf/proto",
     "github.com/johanbrandhorst/protobuf/protoc-gen-gopherjs",
     "github.com/johanbrandhorst/protobuf/wsproxy",
@@ -497,7 +448,6 @@
     "google.golang.org/grpc",
     "google.golang.org/grpc/credentials",
     "google.golang.org/grpc/grpclog",
-    "honnef.co/go/js/dom",
   ]
   solver-name = "gps-cdcl"
   solver-version = 1

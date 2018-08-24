@@ -2,10 +2,11 @@ syntax = "proto3";
 
 package web;
 
-import "github.com/johanbrandhorst/protobuf/proto/gopherjs.proto";
+//import "github.com/johanbrandhorst/protobuf/proto/gopherjs.proto";
 
 // Define the package locations the generated files will go into
-option (gopherjs.gopherjs_package) = "github.com/anxiousmodernman/co-chair/proto/client";
+//option (gopherjs.gopherjs_package) = "github.com/anxiousmodernman/co-chair/proto/client";
+
 option go_package = "github.com/anxiousmodernman/co-chair/proto/server";
 
 service Proxy {
