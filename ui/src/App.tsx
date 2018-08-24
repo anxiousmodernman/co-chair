@@ -1,7 +1,33 @@
 import * as React from 'react';
+import { Backend, StateRequest, ProxyState } from '../generated/web_pb';
+import { ProxyClient, ServiceClientOptions } from '../generated/web_pb_service';
 import './App.css';
 
 // import logo from './logo.svg';
+
+
+
+class Button extends React.Component {
+  clicker() {
+    // we connect to the Web UI port
+    // CORS PROBS...
+    const client = new ProxyClient("https://127.0.0.1:2016");
+    const req = new StateRequest();
+    client.state(req, (err, resp: ProxyState | null) => {
+      if (err) {
+        console.log("err! ", err);
+        return;
+      }
+      console.log("response");
+      console.log(resp);
+    })
+  }
+  public render() {
+    return (
+      <button onClick={this.clicker}>Hello</button>
+    )
+  }
+}
 
 class App extends React.Component {
   public render() {
@@ -10,7 +36,7 @@ class App extends React.Component {
         <header>- co-chair -</header>
         <nav>
           <div><a href="/login">login!!!!</a></div>
-          <div>Thing</div>
+          <Button></Button>
           <div>Thing</div>
           <div>Thing</div>
         </nav>
@@ -26,5 +52,7 @@ class App extends React.Component {
     );
   }
 }
+
+
 
 export default App;
