@@ -19,6 +19,7 @@ func FromCLIOpts(ctx *cli.Context) (Config, error) {
 		if err != nil {
 			return c, err
 		}
+		// TODO: remove this and let CLI flags override any config file?
 		return c, nil
 	}
 	c.DBPath = ctx.String("db")
@@ -30,6 +31,7 @@ func FromCLIOpts(ctx *cli.Context) (Config, error) {
 	c.WebUIDomain = ctx.String("webUIDomain")
 	c.WebUIKey = ctx.String("webUIKey")
 	c.WebUIPort = ctx.String("webUIPort")
+	c.WebAssetsPath = ctx.String("webAssetsPath")
 	c.ProxyCert = ctx.String("proxyCert")
 	c.ProxyKey = ctx.String("proxyKey")
 	c.ProxyPort = ctx.String("proxyPort")
@@ -64,6 +66,11 @@ type Config struct {
 	WebUIDomain string `toml:"webui_domain"`
 	WebUIPort   string `toml:"webui_port"`
 
+	// WebAssetsPath, if provided, configures a path to a directory
+	// to serve frontend assets from. If unset, use the embedded assets
+	// from the frontend directory. This is useful during ui development.
+	WebAssetsPath string `toml:"web_assets_path"`
+
 	// ProxyCert and  are paths to PEM-encoded TLS assets
 	// for our GopherJS-over-websockets UI. This UI is wrapped with
 	// auth0 handlers.
@@ -79,7 +86,7 @@ type Config struct {
 	BypassAuth0   bool   `toml:"bypass_auth0"`
 }
 
-// ExampleConfig can be written to disk. See the systemd-install command.
+// ExampleConfig is a default template. See the systemd-install command.
 var ExampleConfig = `
 
 # Example co-chair TOML config
@@ -105,6 +112,8 @@ webui_key = ""
 # the domain provided here needs to be in the public DNS.
 webui_domain = "localhost"
 webui_port = "2016"
+
+web_assets_path = ""
 
 
 # ProxyCert and  are paths to PEM-encoded TLS assets

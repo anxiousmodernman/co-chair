@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"regexp"
 	"time"
 
 	"google.golang.org/grpc"
@@ -22,6 +23,7 @@ import (
 	"github.com/codegangsta/negroni"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/sessions"
+	// TODO look into newer versions of grpcweb and wsproxy. Have they merged?
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
 	"github.com/johanbrandhorst/protobuf/wsproxy"
 	"github.com/sirupsen/logrus"
@@ -29,7 +31,6 @@ import (
 
 	"github.com/anxiousmodernman/co-chair/backend"
 	"github.com/anxiousmodernman/co-chair/config"
-	"github.com/anxiousmodernman/co-chair/frontend/bundle"
 	"github.com/anxiousmodernman/co-chair/grpcclient"
 	"github.com/anxiousmodernman/co-chair/proto/server"
 	"github.com/dchest/uniuri"
@@ -140,6 +141,11 @@ func main() {
 		Value: "2016",
 	}
 
+	webAssetsPath := cli.StringFlag{
+		Name:  "webAssetsPath",
+		Usage: "serve given directory if provided, else use binary-embedded assets",
+	}
+
 	proxyCert := cli.StringFlag{
 		Name:  "proxyCert",
 		Usage: "for proxy: path to pem encoded tls certificate",
@@ -237,9 +243,10 @@ func main() {
 			Name:  "serve",
 			Usage: "run co-chair",
 			Flags: []cli.Flag{dbFlag, apiCert, apiClientValidation, apiKey, apiPort,
-				webCert, webDomain, webKey, webPort, proxyCert, proxyKey, proxyPort,
-				proxyInsecurePort, auth0ClientID, auth0Domain, auth0Secret,
-				bypassAuth0, conf},
+				webCert, webDomain, webKey, webPort, webAssetsPath,
+				proxyCert, proxyKey, proxyPort, proxyInsecurePort,
+				auth0ClientID, auth0Domain, auth0Secret, bypassAuth0,
+				conf},
 			Action: func(ctx *cli.Context) error {
 				conf, err := config.FromCLIOpts(ctx)
 				if err != nil {
@@ -266,7 +273,7 @@ func main() {
 		},
 		cli.Command{
 			Name:  "systemd-install",
-			Usage: "installs a unit file and config directory",
+			Usage: "installs a systemd unit file and config directory",
 			Flags: []cli.Flag{conf},
 			Action: func(ctx *cli.Context) error {
 				conf, err := config.FromCLIOpts(ctx)
@@ -371,10 +378,22 @@ func serve(conf config.Config) error {
 	)).Methods("POST")
 
 	// Dynamically construct static handlers
-	for _, filePath := range bundle.Entries {
-		logger.Info("adding path:", filePath)
+	// serve frontend from embedded binary assets
 
-		p.Handle("/"+filePath, negroni.New(
+	if conf.WebAssetsPath != "" {
+		logger.Info("WebAssetsPath: ", conf.WebAssetsPath)
+		p.MatcherFunc(func(r *http.Request, rm *mux.RouteMatch) bool {
+			match, _ := regexp.MatchString("/.*", r.URL.Path)
+			return match
+		}).Handler(
+			negroni.New(
+				setConf(conf),
+				negroni.HandlerFunc(withLog),
+				negroni.HandlerFunc(authHandler),
+				negroni.Wrap(staticFromDiskHandler(conf.WebAssetsPath)),
+			)).Methods("GET")
+	} else {
+		p.Handle("/", negroni.New(
 			setConf(conf),
 			negroni.HandlerFunc(withLog),
 			negroni.HandlerFunc(authHandler),
@@ -383,12 +402,16 @@ func serve(conf config.Config) error {
 	}
 
 	// else we serve the "static" folder
-	p.Handle("/", negroni.New(
-		setConf(conf),
-		negroni.HandlerFunc(withLog),
-		negroni.HandlerFunc(authHandler),
-		negroni.Wrap(http.HandlerFunc(staticHandler)),
-	)).Methods("GET")
+	if true {
+		walker := func(r *mux.Route, rt *mux.Router, anc []*mux.Route) error {
+			rx, _ := r.GetPathRegexp()
+			tmpl, _ := r.GetPathTemplate()
+			logger.Infof("route regex: %v", rx)
+			logger.Infof("route template: %v", tmpl)
+			return nil
+		}
+		p.Walk(mux.WalkFunc(walker))
+	}
 
 	// Web server for our Vecty/GopherJS management UI
 	httpsSrv := &http.Server{

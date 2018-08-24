@@ -9,6 +9,7 @@ import (
 	"html/template"
 	"net/http"
 	"net/url"
+	"path/filepath"
 	"strings"
 
 	"github.com/anxiousmodernman/co-chair/config"
@@ -219,6 +220,16 @@ func oauthCallbackHandler(w http.ResponseWriter, r *http.Request) {
 
 func staticHandler(w http.ResponseWriter, r *http.Request) {
 	http.FileServer(bundle.Assets).ServeHTTP(w, r)
+}
+
+func staticFromDiskHandler(dir string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		joined := filepath.Join(dir, r.URL.Path)
+		logger.Info("path: ", joined)
+
+		http.ServeFile(w, r, joined)
+		//http.FileServer(http.Dir(dir))
+	}
 }
 
 func websocketsProxy(wsproxy http.Handler) http.HandlerFunc {

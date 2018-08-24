@@ -13,14 +13,14 @@ protoc -I. -I/tmp/protobuf/include -Ivendor/ ./proto/web.proto \
 
 
 # do optimized js build
-(
-    cd ui
-    npm run build
-)
-
-# Remove the compiled frontend
-rm -rf frontend/static
-cp -r ui/build frontend/static
+#(
+#    cd ui
+#    npm run build
+#)
+#
+## Remove the compiled frontend
+#rm -rf frontend/static
+#cp -r ui/build frontend/static
 
 # Generate 
 echo "go generate..."

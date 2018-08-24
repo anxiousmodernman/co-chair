@@ -7,9 +7,9 @@ class App extends React.Component {
   public render() {
     return (
       <div className="container">
-        <header>co-chair</header>
+        <header>- co-chair -</header>
         <nav>
-          <div>Thing</div>
+          <div><a href="/login">login!!!!</a></div>
           <div>Thing</div>
           <div>Thing</div>
           <div>Thing</div>
