@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"regexp"
 	"time"
 
 	"google.golang.org/grpc"
@@ -22,6 +23,7 @@ import (
 	"github.com/codegangsta/negroni"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/sessions"
+	// TODO look into newer versions of grpcweb and wsproxy. Have they merged?
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
 	"github.com/johanbrandhorst/protobuf/wsproxy"
 	"github.com/sirupsen/logrus"
@@ -139,6 +141,11 @@ func main() {
 		Value: "2016",
 	}
 
+	webAssetsPath := cli.StringFlag{
+		Name:  "webAssetsPath",
+		Usage: "serve given directory if provided, else use binary-embedded assets",
+	}
+
 	proxyCert := cli.StringFlag{
 		Name:  "proxyCert",
 		Usage: "for proxy: path to pem encoded tls certificate",
@@ -236,15 +243,16 @@ func main() {
 			Name:  "serve",
 			Usage: "run co-chair",
 			Flags: []cli.Flag{dbFlag, apiCert, apiClientValidation, apiKey, apiPort,
-				webCert, webDomain, webKey, webPort, proxyCert, proxyKey, proxyPort,
-				proxyInsecurePort, auth0ClientID, auth0Domain, auth0Secret,
-				bypassAuth0, conf},
+				webCert, webDomain, webKey, webPort, webAssetsPath,
+				proxyCert, proxyKey, proxyPort, proxyInsecurePort,
+				auth0ClientID, auth0Domain, auth0Secret, bypassAuth0,
+				conf},
 			Action: func(ctx *cli.Context) error {
 				conf, err := config.FromCLIOpts(ctx)
 				if err != nil {
 					return err
 				}
-				return run(conf)
+				return serve(conf)
 			},
 		},
 		cli.Command{
@@ -265,7 +273,7 @@ func main() {
 		},
 		cli.Command{
 			Name:  "systemd-install",
-			Usage: "installs a unit file and config directory",
+			Usage: "installs a systemd unit file and config directory",
 			Flags: []cli.Flag{conf},
 			Action: func(ctx *cli.Context) error {
 				conf, err := config.FromCLIOpts(ctx)
@@ -278,11 +286,11 @@ func main() {
 	}
 
 	if err := app.Run(os.Args); err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 	}
 }
 
-func run(conf config.Config) error {
+func serve(conf config.Config) error {
 
 	// TODO: construct storm.DB here and pass to constructors instead of
 	// grabbing the field off the Proxy.
@@ -317,7 +325,7 @@ func run(conf config.Config) error {
 
 	webTLScreds, err := credentials.NewClientTLSFromFile(conf.WebUICert, "")
 	if err != nil {
-		return errors.New("Failed to get local server client credentials, did you run `make generate_cert`?")
+		return errors.New("missing web ui tls cert")
 	}
 
 	wsproxy := wsproxy.WrapServer(
@@ -328,6 +336,7 @@ func run(conf config.Config) error {
 	// Note: routes are evaluated in the order they're defined.
 	p := mux.NewRouter()
 
+	// Set up our authentication handler, with optional bypass
 	authHandler := IsAuthenticated
 	if conf.BypassAuth0 {
 		logger.Info("insecure configuration: bypassing auth0 protection for webUI")
@@ -368,19 +377,41 @@ func run(conf config.Config) error {
 		negroni.Wrap(websocketsProxy(wsproxy)),
 	)).Methods("POST")
 
-	p.Handle("/frontend.js", negroni.New(
-		setConf(conf),
-		negroni.HandlerFunc(withLog),
-		negroni.HandlerFunc(authHandler),
-		negroni.Wrap(http.HandlerFunc(homeHandler)),
-	)).Methods("GET")
+	// Dynamically construct static handlers
+	// serve frontend from embedded binary assets
 
-	p.Handle("/", negroni.New(
-		setConf(conf),
-		negroni.HandlerFunc(withLog),
-		negroni.HandlerFunc(authHandler),
-		negroni.Wrap(http.HandlerFunc(homeHandler)),
-	)).Methods("GET")
+	if conf.WebAssetsPath != "" {
+		logger.Info("WebAssetsPath: ", conf.WebAssetsPath)
+		p.MatcherFunc(func(r *http.Request, rm *mux.RouteMatch) bool {
+			match, _ := regexp.MatchString("/.*", r.URL.Path)
+			return match
+		}).Handler(
+			negroni.New(
+				setConf(conf),
+				negroni.HandlerFunc(withLog),
+				negroni.HandlerFunc(authHandler),
+				negroni.Wrap(staticFromDiskHandler(conf.WebAssetsPath)),
+			)).Methods("GET")
+	} else {
+		p.Handle("/", negroni.New(
+			setConf(conf),
+			negroni.HandlerFunc(withLog),
+			negroni.HandlerFunc(authHandler),
+			negroni.Wrap(http.HandlerFunc(staticHandler)),
+		)).Methods("GET")
+	}
+
+	// else we serve the "static" folder
+	if true {
+		walker := func(r *mux.Route, rt *mux.Router, anc []*mux.Route) error {
+			rx, _ := r.GetPathRegexp()
+			tmpl, _ := r.GetPathTemplate()
+			logger.Infof("route regex: %v", rx)
+			logger.Infof("route template: %v", tmpl)
+			return nil
+		}
+		p.Walk(mux.WalkFunc(walker))
+	}
 
 	// Web server for our Vecty/GopherJS management UI
 	httpsSrv := &http.Server{

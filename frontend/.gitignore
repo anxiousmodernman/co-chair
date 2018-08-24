@@ -1,4 +1,8 @@
-html/frontend.js
-html/frontend.js.map
-# We don't HAVE to check in generated code.
+# Generated code
+static
+
+# embedded html, js, css assets
 bundle.go
+
+# generated list of entries, metadata
+entries.go

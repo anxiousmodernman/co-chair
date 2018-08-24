@@ -9,6 +9,7 @@ import (
 	"html/template"
 	"net/http"
 	"net/url"
+	"path/filepath"
 	"strings"
 
 	"github.com/anxiousmodernman/co-chair/config"
@@ -29,8 +30,8 @@ var indexTemplate = `
 <p><a href="/auth/auth0">Log in with auth0</a></p>
 `
 
-// setConf sets our config on a request. We return the type our middleware
-// framework expects. See negroni.New for details.
+// setConf captures the passed-in config and sets it on a request. We return
+// the type our middleware framework expects. See negroni.New for details.
 func setConf(conf config.Config) negroni.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
 		ctx := r.Context()
@@ -217,8 +218,18 @@ func oauthCallbackHandler(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
-func homeHandler(w http.ResponseWriter, r *http.Request) {
+func staticHandler(w http.ResponseWriter, r *http.Request) {
 	http.FileServer(bundle.Assets).ServeHTTP(w, r)
+}
+
+func staticFromDiskHandler(dir string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		joined := filepath.Join(dir, r.URL.Path)
+		logger.Info("path: ", joined)
+
+		http.ServeFile(w, r, joined)
+		//http.FileServer(http.Dir(dir))
+	}
 }
 
 func websocketsProxy(wsproxy http.Handler) http.HandlerFunc {
