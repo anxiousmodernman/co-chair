@@ -434,7 +434,6 @@
     "github.com/gorilla/sessions",
     "github.com/gorilla/websocket",
     "github.com/improbable-eng/grpc-web/go/grpcweb",
-    "github.com/johanbrandhorst/protobuf/proto",
     "github.com/johanbrandhorst/protobuf/protoc-gen-gopherjs",
     "github.com/johanbrandhorst/protobuf/wsproxy",
     "github.com/shurcooL/vfsgen",
