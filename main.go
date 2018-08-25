@@ -24,6 +24,7 @@ import (
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/sessions"
+
 	// TODO look into newer versions of grpcweb and wsproxy. Have they merged?
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
 	"github.com/johanbrandhorst/protobuf/wsproxy"
@@ -382,7 +383,7 @@ func serve(conf config.Config) error {
 		negroni.HandlerFunc(withLog),
 		negroni.HandlerFunc(authHandler),
 		negroni.Wrap(allowCORS(websocketsProxy(wsproxy))),
-	)).Methods("POST")
+	)).Methods("POST", "OPTIONS")
 
 	// Dynamically construct static handlers
 	// serve frontend from embedded binary assets

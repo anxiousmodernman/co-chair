@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { Backend, StateRequest, ProxyState } from '../generated/web_pb';
-import { ProxyClient, ServiceClientOptions } from '../generated/web_pb_service';
+import { ProxyClient, ServiceClientOptions, Proxy } from '../generated/web_pb_service';
+import { grpc } from 'grpc-web-client';
 import './App.css';
 
 // import logo from './logo.svg';
@@ -13,14 +14,19 @@ class Button extends React.Component {
     // CORS PROBS...
     const client = new ProxyClient("https://127.0.0.1:2016");
     const req = new StateRequest();
-    client.state(req, (err, resp: ProxyState | null) => {
-      if (err) {
-        console.log("err! ", err);
-        return;
+
+    grpc.unary(Proxy.State, {
+      request: req,
+      host: "https://localhost:2016",
+      onEnd: res => {
+        const { status, statusMessage, headers, message, trailers } = res;
+        if (status === grpc.Code.OK && message) {
+          console.log("props of message", message.toObject())
+        } else {
+          console.log("not okay", res)
+        }
       }
-      console.log("response");
-      console.log(resp);
-    })
+    });
   }
   public render() {
     return (
