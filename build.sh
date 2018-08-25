@@ -24,9 +24,5 @@ protoc -I. -I/tmp/protobuf/include -Ivendor/ ./proto/web.proto \
 
 # Generate 
 echo "go generate..."
-( 
-    cd frontend
-    go run assets_generate.go
-)
 
 go build 

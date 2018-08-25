@@ -21,8 +21,10 @@ import (
 	"github.com/anxiousmodernman/goth/gothic"
 	"github.com/asdine/storm"
 	"github.com/codegangsta/negroni"
+	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/sessions"
+
 	// TODO look into newer versions of grpcweb and wsproxy. Have they merged?
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
 	"github.com/johanbrandhorst/protobuf/wsproxy"
@@ -369,13 +371,19 @@ func serve(conf config.Config) error {
 		negroni.Wrap(http.HandlerFunc(logoutHandler)),
 	)).Methods("GET")
 
+	allowCORS := handlers.CORS(
+		handlers.AllowedOrigins([]string{"*"}),
+		handlers.AllowedMethods([]string{"GET", "POST", "OPTIONS"}),
+		handlers.AllowedHeaders([]string{"Content-Type", "X-Grpc-Web", "content-type", "x-grpc-web"}),
+	)
+
 	// All websockets requests are POSTs to some {method} on this route.
 	p.Handle("/web.Proxy/{method}", negroni.New(
 		setConf(conf),
 		negroni.HandlerFunc(withLog),
 		negroni.HandlerFunc(authHandler),
-		negroni.Wrap(websocketsProxy(wsproxy)),
-	)).Methods("POST")
+		negroni.Wrap(allowCORS(websocketsProxy(wsproxy))),
+	)).Methods("POST", "OPTIONS")
 
 	// Dynamically construct static handlers
 	// serve frontend from embedded binary assets
@@ -415,8 +423,9 @@ func serve(conf config.Config) error {
 
 	// Web server for our Vecty/GopherJS management UI
 	httpsSrv := &http.Server{
-		Addr:              fmt.Sprintf("0.0.0.0:%s", conf.WebUIPort),
-		Handler:           p,
+		Addr: fmt.Sprintf("0.0.0.0:%s", conf.WebUIPort),
+		// TODO fix me, make me configurable based on local/prod builds
+		Handler:           handlers.CORS(handlers.AllowedOrigins([]string{"*"}))(p),
 		ReadHeaderTimeout: 5 * time.Second,
 		IdleTimeout:       120 * time.Second,
 		TLSConfig: &tls.Config{

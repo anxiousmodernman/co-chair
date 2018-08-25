@@ -48,10 +48,6 @@ required = [
 
 [[constraint]]
   branch = "master"
-  name = "honnef.co/go/js/dom"
-
-[[constraint]]
-  branch = "master"
   name = "github.com/shurcooL/vfsgen"
 
 [[constraint]]
