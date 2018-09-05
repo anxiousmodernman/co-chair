@@ -27,7 +27,7 @@ function build_static {
     if ! pgrep -f "parcel" > /dev/null ; then
         # we could pass --public-url to parcel build
         echo "do a parcel build"
-        (cd ui && parcel build)
+        (cd ui && parcel build index.html)
     fi
     echo "WAHT IS HERE PART 2"
     ls ui/dist
