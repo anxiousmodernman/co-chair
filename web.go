@@ -218,6 +218,8 @@ func oauthCallbackHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func staticHandler(w http.ResponseWriter, r *http.Request) {
+	// TODO(cm): fix this handler, so we can deploy a binary with
+	// assets compiled in.
 	//http.FileServer(bundle.Assets).ServeHTTP(w, r)
 }
 
@@ -227,7 +229,6 @@ func staticFromDiskHandler(dir string) http.HandlerFunc {
 		logger.Info("path: ", joined)
 
 		http.ServeFile(w, r, joined)
-		//http.FileServer(http.Dir(dir))
 	}
 }
 
