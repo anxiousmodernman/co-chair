@@ -2,27 +2,76 @@
 
 set -e
 
-echo "cleaning..."
-rm -f proto/client/* proto/server/* \
-    frontend/html/frontend.js frontend/html/frontend.js.map
+function generate_cert {
+    ./generate-cert.sh
+}
 
-echo "generating code from proto files..."
-# the /tmp path is for CI only
-protoc -I. -I/tmp/protobuf/include -Ivendor/ ./proto/web.proto \
-    --go_out=plugins=grpc:$GOPATH/src
+function clean_proto {
+    rm -f proto/client/* proto/server/* 
+}
 
+function clean_static {
+    rm -f frontend/static/*
+}
 
-# do optimized js build
-#(
-#    cd ui
-#    npm run build
-#)
-#
-## Remove the compiled frontend
-#rm -rf frontend/static
-#cp -r ui/build frontend/static
+function build_proto {
+    # the /tmp path is for CI only
+    protoc -I. -I/tmp/protobuf/include -Ivendor/ ./proto/web.proto \
+        --go_out=plugins=grpc:$GOPATH/src
+}
 
-# Generate 
-echo "go generate..."
+function build_static {
+    mkdir -p frontend/static
+    # Do the static frontend build, unless if parcel is running.
+    # We need the -f option here, since parcel is a node process.
+    if ! pgrep -f "parcel" > /dev/null ; then
+        # we could pass --public-url to parcel build
+        echo "do a parcel build"
+        (cd ui && parcel build index.html)
+    fi
+    echo "WAHT IS HERE PART 2"
+    ls ui/dist
+    cp ui/dist/* frontend/static/
+    (cd frontend && go run assets_generate.go)
+}
 
-go build 
+function build_all {
+
+    if [ ! -f ./key.pem ]; then
+        generate_cert
+    fi
+
+    clean_proto
+    build_proto
+
+    clean_static
+    build_static
+    go build 
+}
+
+case "$1" in
+    all)
+        build_all 
+    ;;
+    clean)
+        clean_static
+        clean_proto
+    ;;
+    static)
+        clean_static
+        build_static
+    ;;
+    proto)
+        clean_proto
+        build_proto
+    ;;
+    help)
+        echo "Usage:"
+        echo "    ./build.sh [help|clean|all|static|proto]"
+    ;;
+    *)
+        # TODO: build_minimal
+        build_all
+    ;;
+
+esac

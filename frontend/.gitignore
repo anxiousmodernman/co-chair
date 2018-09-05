@@ -1,8 +1,3 @@
 # Generated code
 static
 
-# embedded html, js, css assets
-bundle.go
-
-# generated list of entries, metadata
-entries.go
