@@ -52,9 +52,9 @@ body {
   .container {
     display: flex;
     flex-direction: column;
-    min-height: 100vh;
+    min-height: 100vh; /* 100% viewport height */
     display: grid;
-    grid-template-columns: 200px 1fr 200px;
+    grid-template-columns: 200px 1fr;
     grid-template-rows: auto 1fr auto;
     overflow: hidden;
     height: 100vh;
@@ -74,7 +74,7 @@ body {
   main {
     flex: 1;
     padding: 20px;
-    overflow-y: auto;
+    overflow-y: auto;  /* gives us the scroll bar */
   }
   aside {
     padding: 20px;
@@ -90,9 +90,11 @@ body {
   }
 }
 
+
+.selected {
+  background-color: rgb(202, 202, 202);
+}
  
-
-
 h1 {
   margin-bottom: 1em;
   font-size: 1.3em;
