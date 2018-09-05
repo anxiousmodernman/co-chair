@@ -26,6 +26,7 @@ function build_static {
     # We need the -f option here, since parcel is a node process.
     if ! pgrep -f "parcel" > /dev/null ; then
         # we could pass --public-url to parcel build
+        echo "do a parcel build"
         (cd ui && parcel build)
     fi
     cp ui/dist/* frontend/static/
