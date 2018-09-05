@@ -29,6 +29,8 @@ function build_static {
         echo "do a parcel build"
         (cd ui && parcel build)
     fi
+    echo "WAHT IS HERE"
+    ls ui
     cp ui/dist/* frontend/static/
     (cd frontend && go run assets_generate.go)
 }
