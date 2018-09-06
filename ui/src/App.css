@@ -7,21 +7,24 @@ body {
   .container {
     display: flex;
     flex-direction: column;
+    background-color: rgb(55, 55, 60);
     min-height: 100vh;
+        color: lightgray;
   }
   header {
     grid-column: span 3;
     padding: 30px;
     text-align: center;
     font-size: 1.4em;
-    background-color: #369;
-    color: white;
+/*     background-color: #369; */
+    border-bottom: double lightgray;
+    color: lightgray;
     order: 1;
   }
   nav {
     display: flex;
-    flex-direction: row;
-    background-color: #f90;
+    border-bottom: double lightgray;
+    flex-direction: column;
     padding: 20px;
     order: 3;
   }
@@ -29,11 +32,11 @@ body {
     flex: 1;
     padding: 20px;
     overflow-y: auto;
+    border-bottom: double lightgray;
     order: 2;
   }
   aside {
     padding: 20px;
-    background-color: #936;
     order: 4;
   }
   footer {
@@ -41,8 +44,7 @@ body {
     padding: 20px;
     text-align: center;
     font-size: 1.4em;
-    background-color: #690;
-    color: white;
+    color: darkgrey;
     order: 5;
   }
 }
