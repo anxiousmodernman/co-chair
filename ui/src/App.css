@@ -9,7 +9,7 @@ body {
     flex-direction: column;
     background-color: rgb(55, 55, 60);
     min-height: 100vh;
-        color: lightgray;
+    color: lightgray;
   }
   header {
     grid-column: span 3;
@@ -60,35 +60,36 @@ body {
     grid-template-rows: auto 1fr auto;
     overflow: hidden;
     height: 100vh;
+    background-color: rgb(55, 55, 60);
+    color: lightgray;
   }
   header {
     grid-column: span 3;
     padding: 30px;
     text-align: center;
     font-size: 1.4em;
-    background-color: #369;
-    color: white;
+    border-bottom: double lightgray;
   }
   nav {
-    background-color: #f90;
     padding: 20px;
+    border-right: double lightgray;
+    border-bottom: double lightgray;
   }
   main {
     flex: 1;
     padding: 20px;
     overflow-y: auto;  /* gives us the scroll bar */
+    border-bottom: double lightgray;
   }
   aside {
     padding: 20px;
-    background-color: #936;
   }
   footer {
     grid-column: span 3;
     padding: 20px;
     text-align: center;
     font-size: 1.4em;
-    background-color: #690;
-    color: white;
+    color: darkgray;
   }
 }
 
