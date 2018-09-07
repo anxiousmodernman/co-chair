@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/anxiousmodernman/co-chair/config"
+	"github.com/anxiousmodernman/co-chair/frontend/bundle"
 	"github.com/codegangsta/negroni"
 	"github.com/gorilla/websocket"
 	"golang.org/x/oauth2"
@@ -218,9 +219,7 @@ func oauthCallbackHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func staticHandler(w http.ResponseWriter, r *http.Request) {
-	// TODO(cm): fix this handler, so we can deploy a binary with
-	// assets compiled in.
-	//http.FileServer(bundle.Assets).ServeHTTP(w, r)
+	http.FileServer(bundle.Assets).ServeHTTP(w, r)
 }
 
 func staticFromDiskHandler(dir string) http.HandlerFunc {

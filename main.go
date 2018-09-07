@@ -401,12 +401,16 @@ func serve(conf config.Config) error {
 				negroni.Wrap(staticFromDiskHandler(conf.WebAssetsPath)),
 			)).Methods("GET")
 	} else {
-		p.Handle("/", negroni.New(
-			setConf(conf),
-			negroni.HandlerFunc(withLog),
-			negroni.HandlerFunc(authHandler),
-			negroni.Wrap(http.HandlerFunc(staticHandler)),
-		)).Methods("GET")
+		p.MatcherFunc(func(r *http.Request, rm *mux.RouteMatch) bool {
+			match, _ := regexp.MatchString("/.*", r.URL.Path)
+			return match
+		}).Handler(
+			negroni.New(
+				setConf(conf),
+				negroni.HandlerFunc(withLog),
+				negroni.HandlerFunc(authHandler),
+				negroni.Wrap(http.HandlerFunc(staticHandler)),
+			)).Methods("GET")
 	}
 
 	// else we serve the "static" folder
