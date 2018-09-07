@@ -1,16 +1,28 @@
 # UI
 
+## Setup
+
 Get dependencies
 
+* nvm
+* parcel
+* tsc - the typescript compiler
+
+## Hacking
+
+To hack on the UI, you need two terminals. In the first terminal, run
+
 ```
-nvm use node   # latest/greatest
-npm install -g typescript
-npm install -g react-scripts-ts
+parcel watch index.html
 ```
 
-Run locally
+This will compile a **dist** directory. In the other terminal, from the 
+repository root, run
 
 ```
-npm run start
+./co-chair serve --bypassAuth0 --webAssetsPath ui/dist
 ```
+
+Then visit https://localhost:2016 in your browser. You will need to 
+refresh manually, for now.
 
