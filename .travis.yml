@@ -24,7 +24,7 @@ install:
     - sudo mv /tmp/protobuf/bin/protoc /bin
     - cd $GOPATH/src/github.com/anxiousmodernman/co-chair && dep ensure
     - cd $GOPATH/src/github.com/anxiousmodernman/co-chair && ./install.sh
-    - cd $GOPATH/src/github.com/anxiousmodernman/co-chair && ./build.sh
+    - cd $GOPATH/src/github.com/anxiousmodernman/co-chair && ./build.sh all
 
 script:
     - go test -v ./...
