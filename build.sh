@@ -46,7 +46,23 @@ function build_all {
 
     clean_static
     build_static
+
     go build 
+    build_container
+}
+
+function build_default {
+    go build
+}
+
+function build_container {
+    if [ ! -f ./co-chair ]; then
+        go build
+    fi
+    cp co-chair docker
+    pushd docker
+        bash container.sh
+    popd
 }
 
 case "$1" in
@@ -56,6 +72,9 @@ case "$1" in
     clean)
         clean_static
         clean_proto
+    ;;
+    container)
+        build_container
     ;;
     static)
         clean_static
@@ -70,8 +89,6 @@ case "$1" in
         echo "    ./build.sh [help|clean|all|static|proto]"
     ;;
     *)
-        # TODO: build_minimal
-        build_all
+        build_default
     ;;
-
 esac
