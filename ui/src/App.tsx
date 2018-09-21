@@ -8,7 +8,7 @@ import './App.css';
 
 
 
-class Button extends React.Component {
+class AddBackendButton extends React.Component {
   clicker() {
     // we connect to the Web UI port
     // CORS PROBS...
@@ -42,7 +42,7 @@ class App extends React.Component {
         <header>co-chair</header>
         <nav>
           <div><a href="/login">login!!!!</a></div>
-          <Button></Button>
+          <AddBackendButton />
           <div>Thing</div>
           <div>Thing</div>
         </nav>
